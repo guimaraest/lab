@@ -1,0 +1,45 @@
+x-secret: &secret
+  SECRET_KEY: "34772a485260a508b9bc6621264cd23decff45f204ac59a8db6d3b1ae785c223"
+
+services:
+  minecraft:
+    image: itzg/minecraft-server:java25
+    container_name: minecraft
+    restart: unless-stopped
+    tty: true
+    stdin_open: true
+
+    environment:
+      EULA: "TRUE"
+      TYPE: FABRIC
+      VERSION: "26.1.2"
+
+      MEMORY: 4G
+
+      ENABLE_RCON: "true"
+      RCON_PASSWORD: "Br@zillianpass"
+
+      ONLINE_MODE: "true"
+      MOTD: "charlie kirk"
+
+      DIFFICULTY: "normal"
+      MAX_PLAYERS: 10
+
+      MODE: survival
+      DEFAULT_GAMEMODE: survival
+
+      OPS: "Iron_ore_"
+
+    volumes:
+      - ./data:/data
+
+  playit:
+    image: ghcr.io/playit-cloud/playit-agent:0.17
+    restart: unless-stopped
+    network_mode: service:minecraft
+
+    environment:
+      <<: *secret
+
+    depends_on:
+      - minecraft
