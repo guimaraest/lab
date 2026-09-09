@@ -1,33 +1,46 @@
+version: '3.8'
+
 services:
-  nextcloud:
-    image: nextcloud
-    container_name: nextcloud
+  db:
+    image: mariadb:10.11
+    container_name: nextcloud-db
+    restart: always
+    command: --transaction-isolation=READ-COMMITTED --log-bin=binlog --binlog-format=ROW
     volumes:
-      - ./config:/var/www/html
-      - ./data:/var/www/html/data
-    ports:
-      - "8080:80"
-    restart: unless-stopped
+      - db_data:/var/lib/mysql
     env_file:
       - ../.env
     environment:
-      - POSTGRES_HOST=nextcloud-db
-    depends_on:
-      - nextcloud-db
-    networks:
-      - lab-net
+      - MYSQL_ROOT_PASSWORD
+      - MYSQL_PASSWORD
+      - MYSQL_DATABASE
+      - MYSQL_USER
 
-  nextcloud-db:
-    image: postgres:16
-    container_name: nextcloud-db
+  redis:
+    image: redis:alpine
+    container_name: nextcloud-redis
+    restart: always
+
+  app:
+    image: nextcloud:apache
+    container_name: nextcloud-app
+    restart: always
+    ports:
+      - 8080:80
+    depends_on:
+      - db
+      - redis
     volumes:
-      - ./db:/var/lib/postgresql/data
-    restart: unless-stopped
+      - nextcloud_data:/var/www/html
     env_file:
       - ../.env
-    networks:
-      - lab-net
+    environment:
+      - MYSQL_PASSWORD
+      - MYSQL_DATABASE
+      - MYSQL_USER
+      - MYSQL_HOST=db
+      - REDIS_HOST=redis
 
-networks:
-  lab-net:
-    external: true
+volumes:
+  db_data:
+  nextcloud_data:
