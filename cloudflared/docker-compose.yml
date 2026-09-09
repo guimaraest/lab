@@ -1,0 +1,15 @@
+services:
+  cloudflared:
+    image: cloudflare/cloudflared
+    container_name: cloudflared
+    command: tunnel run
+    volumes:
+      - ./config.yml:/etc/cloudflared/config.yml
+      - ~/.cloudflared:/etc/cloudflared
+    restart: unless-stopped
+    networks:
+      - lab-net
+
+networks:
+  lab-net:
+    external: true

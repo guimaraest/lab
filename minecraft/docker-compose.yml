@@ -1,5 +1,5 @@
 x-secret: &secret
-  SECRET_KEY: "34772a485260a508b9bc6621264cd23decff45f204ac59a8db6d3b1ae785c223"
+  SECRET_KEY: "${PLAYIT_SECRET_KEY}"
 
 services:
   minecraft:
@@ -17,7 +17,7 @@ services:
       MEMORY: 4G
 
       ENABLE_RCON: "true"
-      RCON_PASSWORD: "Br@zillianpass"
+      RCON_PASSWORD: "${MINECRAFT_RCON_PASSWORD}"
 
       ONLINE_MODE: "true"
       MOTD: "charlie kirk"

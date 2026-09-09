@@ -1,0 +1,33 @@
+services:
+  nextcloud:
+    image: nextcloud
+    container_name: nextcloud
+    volumes:
+      - ./config:/var/www/html
+      - ./data:/var/www/html/data
+    ports:
+      - "8080:80"
+    restart: unless-stopped
+    env_file:
+      - ../.env
+    environment:
+      - POSTGRES_HOST=nextcloud-db
+    depends_on:
+      - nextcloud-db
+    networks:
+      - lab-net
+
+  nextcloud-db:
+    image: postgres:16
+    container_name: nextcloud-db
+    volumes:
+      - ./db:/var/lib/postgresql/data
+    restart: unless-stopped
+    env_file:
+      - ../.env
+    networks:
+      - lab-net
+
+networks:
+  lab-net:
+    external: true
