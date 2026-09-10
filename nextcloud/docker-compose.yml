@@ -45,7 +45,7 @@ services:
       test: ["CMD", "curl", "-f", "http://localhost/status.php"]
       interval: 5s
       timeout: 3s
-      retries: 10
+      retries: 20
     networks:
       - lab-net
       - internal
