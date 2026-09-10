@@ -1,13 +1,13 @@
 beakers:
   nextcloud:
-    aliases: [nc]
+    aliases: [nas]
     autostart: true
     depends_on: []
   cloudflared:
-    aliases: [cf]
+    aliases: [cloudflare, tunnel]
     autostart: true
     depends_on: [nextcloud]
   minecraft:
-    aliases: [mc]
-    autostart: true
+    aliases: []
+    autostart: false
     depends_on: []
