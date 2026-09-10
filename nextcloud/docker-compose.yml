@@ -15,18 +15,20 @@ services:
       - MYSQL_PASSWORD
       - MYSQL_DATABASE
       - MYSQL_USER
+    networks:
+      - internal
 
   redis:
     image: redis:alpine
     container_name: nextcloud-redis
     restart: always
+    networks:
+      - internal
 
   app:
     image: nextcloud:apache
     container_name: nextcloud-app
     restart: always
-    ports:
-      - 20001:80
     depends_on:
       - db
       - redis
@@ -40,6 +42,9 @@ services:
       - MYSQL_USER
       - MYSQL_HOST=db
       - REDIS_HOST=redis
+    networks:
+      - lab-net
+      - internal
 
 volumes:
   db_data:
@@ -48,3 +53,5 @@ volumes:
 networks:
   lab-net:
     external: true
+  internal:
+    internal: true
