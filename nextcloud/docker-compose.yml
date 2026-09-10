@@ -19,14 +19,14 @@ services:
       - internal
 
   redis:
-    image: redis:alpine
+    image: redis:8-alpine
     container_name: nextcloud-redis
     restart: always
     networks:
       - internal
 
   app:
-    image: nextcloud:apache
+    image: nextcloud:34.0.2-apache
     container_name: nextcloud-app
     restart: always
     depends_on:
