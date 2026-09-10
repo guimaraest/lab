@@ -16,7 +16,6 @@ services:
       MEMORY: 4G
 
       ENABLE_RCON: "true"
-      RCON_PASSWORD: "${MINECRAFT_RCON_PASSWORD}"
 
       ONLINE_MODE: "true"
       MOTD: "charlie kirk"
