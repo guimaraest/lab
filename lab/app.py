@@ -135,8 +135,13 @@ def cmd_up(args):
             continue
 
         print(f"starting '{name}'...")
-        run(["docker", "compose", "up", "-d"], cwd=path)
+        up_command = ["docker", "compose", "up", "-d"]
+        if args.build:
+            up_command.append("--build")
+        run(up_command, cwd=path)
         wait_healthy(path, name)
+        if args.logs:
+            run(["docker", "compose", "logs"], cwd=path)
 
 
 def cmd_down(args):
@@ -178,6 +183,8 @@ def main():
         metavar="BEAKER_OR_ALIAS",
         help="beaker names or aliases (defaults to all autostart beakers)",
     )
+    up_parser.add_argument("--build", action="store_true", help="build images before starting")
+    up_parser.add_argument("--logs", action="store_true", help="show logs after starting")
 
     down_parser = sub.add_parser("down", help="stop beakers in reverse dependency order")
     down_parser.add_argument(
