@@ -1,6 +1,0 @@
-tunnel: homelab
-credentials-file: /etc/cloudflared/creds.json
-ingress:
-  - hostname: vault.yourdomain.com
-    service: http://notes:8384
-  - service: http_status:404
