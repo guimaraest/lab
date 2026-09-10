@@ -109,14 +109,19 @@ def cmd_init(args):
         print(f"created network '{NETWORK}'")
 
 
-def cmd_run(args):
-    beakers = load_config()
+def selected_beakers(beakers, requested):
     aliases = beaker_aliases(beakers)
     selected = []
-    for requested in args.beakers:
-        if requested not in aliases:
-            raise SystemExit(f"unknown beaker or alias: {requested}")
-        selected.append(aliases[requested])
+    for name in requested:
+        if name not in aliases:
+            raise SystemExit(f"unknown beaker or alias: {name}")
+        selected.append(aliases[name])
+    return selected
+
+
+def cmd_up(args):
+    beakers = load_config()
+    selected = selected_beakers(beakers, args.beakers)
 
     for name in topological_order(beakers, selected or None):
         cfg = beakers[name]
@@ -132,6 +137,21 @@ def cmd_run(args):
         print(f"starting '{name}'...")
         run(["docker", "compose", "up", "-d"], cwd=path)
         wait_healthy(path, name)
+
+
+def cmd_down(args):
+    beakers = load_config()
+    selected = selected_beakers(beakers, args.beakers)
+    names = topological_order(beakers, selected or None)
+
+    for name in reversed(names):
+        path = LAB_ROOT / name
+        if not (path / "docker-compose.yml").exists():
+            print(f"skipping '{name}' (no docker-compose.yml)")
+            continue
+
+        print(f"stopping '{name}'...")
+        run(["docker", "compose", "down"], cwd=path)
 
 
 def cmd_status(args):
@@ -151,12 +171,20 @@ def main():
     sub = parser.add_subparsers(dest="command", required=True)
 
     sub.add_parser("init", help="create the shared docker network")
-    run_parser = sub.add_parser("run", help="start beakers in dependency order")
-    run_parser.add_argument(
+    up_parser = sub.add_parser("up", help="start beakers in dependency order")
+    up_parser.add_argument(
         "beakers",
         nargs="*",
         metavar="BEAKER_OR_ALIAS",
         help="beaker names or aliases (defaults to all autostart beakers)",
+    )
+
+    down_parser = sub.add_parser("down", help="stop beakers in reverse dependency order")
+    down_parser.add_argument(
+        "beakers",
+        nargs="*",
+        metavar="BEAKER_OR_ALIAS",
+        help="beaker names or aliases (defaults to all beakers)",
     )
 
     status_parser = sub.add_parser("status", help="show running containers")
@@ -166,8 +194,10 @@ def main():
 
     if args.command == "init":
         cmd_init(args)
-    elif args.command == "run":
-        cmd_run(args)
+    elif args.command == "up":
+        cmd_up(args)
+    elif args.command == "down":
+        cmd_down(args)
     elif args.command == "status":
         cmd_status(args)
 
