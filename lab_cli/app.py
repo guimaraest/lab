@@ -9,6 +9,7 @@ import yaml
 LAB_ROOT = Path(__file__).resolve().parent.parent
 CONFIG_PATH = Path(__file__).with_name("cli_config.yaml")
 NETWORK = "lab-net"
+COMPOSE_ENV_FILE = LAB_ROOT / ".env"
 
 HEALTH_TIMEOUT = 100  # seconds to wait for a beaker before giving up
 HEALTH_POLL_INTERVAL = 2
@@ -16,6 +17,10 @@ HEALTH_POLL_INTERVAL = 2
 
 def run(cmd, cwd=None, capture=False):
     return subprocess.run(cmd, cwd=cwd, capture_output=capture, text=True)
+
+
+def compose_command(*args):
+    return ["docker", "compose", "--env-file", str(COMPOSE_ENV_FILE), *args]
 
 
 def load_config():
@@ -60,7 +65,7 @@ def topological_order(beakers, selected=None):
 
 def container_names(beaker_path):
     result = run(
-        ["docker", "compose", "config", "--format", "json"],
+        compose_command("config", "--format", "json"),
         cwd=beaker_path,
         capture=True,
     )
@@ -135,13 +140,13 @@ def cmd_up(args):
             continue
 
         print(f"starting '{name}'...")
-        up_command = ["docker", "compose", "up", "-d"]
+        up_command = compose_command("up", "-d")
         if args.build:
             up_command.append("--build")
         run(up_command, cwd=path)
         wait_healthy(path, name)
         if args.logs:
-            run(["docker", "compose", "logs"], cwd=path)
+            run(compose_command("logs"), cwd=path)
 
 
 def cmd_down(args):
@@ -156,7 +161,7 @@ def cmd_down(args):
             continue
 
         print(f"stopping '{name}'...")
-        run(["docker", "compose", "down"], cwd=path)
+        run(compose_command("down"), cwd=path)
 
 
 def cmd_status(args):
