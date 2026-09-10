@@ -4,8 +4,7 @@ services:
     container_name: cloudflared
     command: tunnel run
     volumes:
-      - ./config.yml:/etc/cloudflared/config.yml
-      - ~/.cloudflared:/etc/cloudflared
+      - ./:/etc/cloudflared
     restart: unless-stopped
     networks:
       - lab-net
