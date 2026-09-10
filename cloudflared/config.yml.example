@@ -2,5 +2,5 @@ tunnel: <tunnel-uuid>
 credentials-file: /etc/cloudflared/creds.json
 ingress:
   - hostname: nas.yourdomain.com
-    service: http://nextcloud:80
+    service: http://nextcloud-app:80
   - service: http_status:404
