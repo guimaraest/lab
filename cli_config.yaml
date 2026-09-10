@@ -1,0 +1,13 @@
+beakers:
+  nextcloud:
+    aliases: [nc]
+    autostart: true
+    depends_on: []
+  cloudflared:
+    aliases: [cf]
+    autostart: true
+    depends_on: [nextcloud]
+  minecraft:
+    aliases: [mc]
+    autostart: true
+    depends_on: []

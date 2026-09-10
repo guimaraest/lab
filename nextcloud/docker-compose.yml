@@ -43,6 +43,11 @@ services:
       - MYSQL_HOST=db
       - REDIS_HOST=redis
       - NEXTCLOUD_TRUSTED_DOMAINS
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/status.php"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
     networks:
       - lab-net
       - internal
