@@ -6,11 +6,11 @@ from pathlib import Path
 
 import yaml
 
-LAB_ROOT = Path.home() / "lab"
+LAB_ROOT = Path.home() / "lab_cli"
 CONFIG_PATH = Path(__file__).with_name("cli_config.yaml")
 NETWORK = "lab-net"
 
-HEALTH_TIMEOUT = 60  # seconds to wait for a beaker before giving up
+HEALTH_TIMEOUT = 100  # seconds to wait for a beaker before giving up
 HEALTH_POLL_INTERVAL = 2
 
 

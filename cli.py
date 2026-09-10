@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-from lab.app import main
+from lab_cli.app import main
 
 
 if __name__ == "__main__":
