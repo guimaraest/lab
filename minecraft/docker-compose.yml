@@ -1,6 +1,3 @@
-x-secret: &secret
-  SECRET_KEY: "${PLAYIT_SECRET_KEY}"
-
 services:
   minecraft:
     image: itzg/minecraft-server:java25
@@ -8,6 +5,8 @@ services:
     restart: unless-stopped
     tty: true
     stdin_open: true
+    env_file:
+      - ../.env
 
     environment:
       EULA: "TRUE"
@@ -37,9 +36,8 @@ services:
     image: ghcr.io/playit-cloud/playit-agent:0.17
     restart: unless-stopped
     network_mode: service:minecraft
-
-    environment:
-      <<: *secret
+    env_file:
+      - ../.env
 
     depends_on:
       - minecraft
