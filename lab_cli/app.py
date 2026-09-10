@@ -6,7 +6,7 @@ from pathlib import Path
 
 import yaml
 
-LAB_ROOT = Path.home() / "lab_cli"
+LAB_ROOT = Path(__file__).resolve().parent.parent
 CONFIG_PATH = Path(__file__).with_name("cli_config.yaml")
 NETWORK = "lab-net"
 
