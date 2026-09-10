@@ -9,10 +9,10 @@ services:
     env_file:
       - ../.env
     environment:
-      - MYSQL_ROOT_PASSWORD
-      - MYSQL_PASSWORD
-      - MYSQL_DATABASE
-      - MYSQL_USER
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
     networks:
       - internal
 
@@ -35,12 +35,12 @@ services:
     env_file:
       - ../.env
     environment:
-      - MYSQL_PASSWORD
-      - MYSQL_DATABASE
-      - MYSQL_USER
-      - MYSQL_HOST=db
-      - REDIS_HOST=redis
-      - NEXTCLOUD_TRUSTED_DOMAINS
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_HOST: db
+      REDIS_HOST: redis
+      NEXTCLOUD_TRUSTED_DOMAINS: ${NEXTCLOUD_TRUSTED_DOMAINS}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost/status.php"]
       interval: 5s
