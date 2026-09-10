@@ -26,7 +26,7 @@ services:
     container_name: nextcloud-app
     restart: always
     ports:
-      - 8080:80
+      - 20001:80
     depends_on:
       - db
       - redis
@@ -44,3 +44,7 @@ services:
 volumes:
   db_data:
   nextcloud_data:
+
+networks:
+  lab-net:
+    external: true
