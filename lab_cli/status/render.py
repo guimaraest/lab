@@ -93,11 +93,10 @@ def print_status(report):
     state_style = {"healthy": "green", "degraded": "yellow", "unknown": "yellow"}.get(report["status"], "red")
     used_disk = disk["used"]
     docker_total = docker_total_bytes(docker_disk)
-    docker_parts = " + ".join(f"{label}: {item.get('size', 'unavailable')}" for label, item in docker_disk.items()) or "unavailable"
     storage_text = "\n".join([
         f"RAM    {visual_bar((memory['used'] / memory['total']) if memory['total'] else None)} {memory['used_human']} / {memory['total_human']}",
         f"Disk   {visual_bar((disk['used'] / disk['total']) if disk['total'] else None)} {disk['used_human']} / {disk['total_human']}",
-        f"Docker {visual_bar(docker_total / used_disk if docker_total and used_disk else None, color='#A78BFA')} {human_bytes(docker_total) if docker_total else 'unavailable'} ({storage_ratio_label(docker_total, used_disk)}; {docker_parts})",
+        f"Docker {visual_bar(docker_total / used_disk if docker_total and used_disk else None, color='#A78BFA')} {human_bytes(docker_total) if docker_total else 'unavailable'} ({storage_ratio_label(docker_total, used_disk)})",
     ])
     for beaker in report["beakers"]:
         beaker_total = beaker_total_bytes(beaker)
@@ -112,7 +111,7 @@ def print_status(report):
     console.print(Panel(host_text, title="[bold #6366F1]Lab Host[/bold #6366F1]", border_style="#6366F1", expand=False))
     console.print(Panel(storage_text, title="[bold #6366F1]Storage[/bold #6366F1]", border_style="#818CF8", expand=False))
 
-    table = Table(title="[bold #6366F1]Beaker Containers[/bold #6366F1]", border_style="#818CF8", header_style="#A78BFA")
+    table = Table(title="[bold #6366F1]Container Details[/bold #6366F1]", border_style="#818CF8", header_style="#A78BFA")
     for column in ("Beaker", "Container", "Status", "Health", "Uptime", "Restarts", "CPU", "RAM"):
         table.add_column(column)
     for beaker in report["beakers"]:
@@ -120,10 +119,6 @@ def print_status(report):
             style = "green" if container["status"] == "running" and container["health"] in ("healthy", "none") else "red"
             table.add_row(beaker["name"], container["name"], container["status"], container["health"], container["uptime"], str(container["restart_count"]), container_cpu_bar(container), container_ram_bar(container, memory["total"]), style=style)
     console.print(table)
-    for beaker in report["beakers"]:
-        domains = ", ".join(beaker["domains"]) or "none configured"
-        volumes = ", ".join(f"{volume['name']}={volume['size_human']}" for volume in beaker["volumes"]) or "none"
-        console.print(f"[bold #6366F1]{beaker['name']}[/bold #6366F1]  folder={beaker['folder_size_human']}  uptime={beaker['uptime']}  domains={domains}  volumes={volumes}")
 
 
 def print_beaker_status(beaker):
