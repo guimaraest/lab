@@ -11,6 +11,7 @@ from lab_cli.status.collect import host_memory
 
 
 BAR_WIDTH = 18
+CONTAINER_BAR_WIDTH = 8
 
 
 def visual_bar(ratio, width=BAR_WIDTH, color="#818CF8"):
@@ -31,11 +32,11 @@ def parse_size(value):
     return float(match.group(1)) * units.get(match.group(2).lower(), 1)
 
 
-def ratio_bar(value, total, suffix=""):
+def ratio_bar(value, total, suffix="", width=BAR_WIDTH):
     if value is None or total in (None, 0):
-        return visual_bar(None)
+        return visual_bar(None, width=width)
     ratio = value / total
-    return f"{visual_bar(ratio)} {suffix}".rstrip()
+    return f"{visual_bar(ratio, width=width)} {suffix}".rstrip()
 
 
 def docker_total_bytes(docker_disk):
@@ -82,19 +83,14 @@ def container_cpu_bar(container):
     value = container["stats"].get("CPUPerc", "")
     match = re.search(r"([\d.]+)", value)
     percent = float(match.group(1)) if match else None
-    return ratio_bar(percent, 100, f"{percent:.1f}%" if percent is not None else "unavailable")
+    return ratio_bar(percent, 100, f"{percent:.1f}%" if percent is not None else "unavailable", CONTAINER_BAR_WIDTH)
 
 
 def container_ram_bar(container, host_total):
     value = container["stats"].get("MemUsage", "")
     match = re.match(r"\s*([\d.]+\s*[KMGTPE]?i?B)", value, re.IGNORECASE)
     used = parse_size(match.group(1)) if match else None
-    return ratio_bar(used, host_total, value.split("/")[0].strip().lower() if used is not None else "unavailable")
-
-
-def container_row(container):
-    stats = container["stats"]
-    return [container["name"], container["status"], container["health"], container["uptime"], str(container["restart_count"]), stats.get("CPUPerc", "unavailable"), stats.get("MemUsage", "unavailable")]
+    return ratio_bar(used, host_total, value.split("/")[0].strip().lower() if used is not None else "unavailable", CONTAINER_BAR_WIDTH)
 
 
 def print_status(report):
@@ -129,9 +125,9 @@ def print_status(report):
     storage_table.add_column("usage", no_wrap=True)
     storage_table.add_column("size", no_wrap=True)
     storage_table.add_column("share", no_wrap=True)
-    storage_table.add_row("ram", visual_bar((memory["used"] / memory["total"]) if memory["total"] else None), f"{memory['used_human']} / {memory['total_human']}".lower(), "")
-    storage_table.add_row("disk", visual_bar((disk["used"] / disk["total"]) if disk["total"] else None), f"{disk['used_human']} / {disk['total_human']}".lower(), "")
-    storage_table.add_row("docker", visual_bar(docker_total / used_disk if docker_total and used_disk else None, color="#A78BFA"), human_bytes(docker_total).lower() if docker_total else "unavailable", storage_ratio_label(docker_total, used_disk).lower())
+    storage_table.add_row("ram", visual_bar((memory["used"] / memory["total"]) if memory["total"] else None), f"{memory['used_human']} / {memory['total_human']}".lower(), storage_ratio_label(memory["used"], memory["total"]).lower())
+    storage_table.add_row("disk", visual_bar((disk["used"] / disk["total"]) if disk["total"] else None), f"{disk['used_human']} / {disk['total_human']}".lower(), storage_ratio_label(disk["used"], disk["total"]).lower())
+    storage_table.add_row("docker", visual_bar(docker_total / used_disk if docker_total and used_disk else None), human_bytes(docker_total).lower() if docker_total else "unavailable", storage_ratio_label(docker_total, used_disk).lower())
     for beaker in report["beakers"]:
         beaker_total = beaker_total_bytes(beaker)
         storage_table.add_row(
@@ -142,9 +138,9 @@ def print_status(report):
         )
     console.print(Panel(storage_table, title="[bold #6366F1]storage[/bold #6366F1]", border_style="#818CF8", expand=False))
 
-    table = Table(title="[bold #6366F1]container details[/bold #6366F1]", border_style="#818CF8", header_style="#A78BFA")
+    table = Table(title="[bold #6366F1]container details[/bold #6366F1]", border_style="#818CF8", header_style="#A78BFA", padding=(0, 1), expand=False)
     for column in ("beaker", "container", "status", "health", "uptime", "restarts", "cpu", "ram"):
-        table.add_column(column)
+        table.add_column(column, no_wrap=True, overflow="ellipsis")
     for beaker in report["beakers"]:
         for container in beaker["containers"]:
             style = "green" if container["status"] == "running" and container["health"] in ("healthy", "none") else "red"
@@ -155,9 +151,9 @@ def print_status(report):
 def print_beaker_status(beaker):
     console = Console()
     host_total = host_memory()["total"]
-    table = Table(title=f"[bold #6366F1]{str(beaker['name']).lower()}[/bold #6366F1]", border_style="#818CF8", header_style="#A78BFA")
+    table = Table(title=f"[bold #6366F1]{str(beaker['name']).lower()}[/bold #6366F1]", border_style="#818CF8", header_style="#A78BFA", padding=(0, 1), expand=False)
     for column in ("container", "status", "health", "uptime", "restarts", "cpu", "ram"):
-        table.add_column(column)
+        table.add_column(column, no_wrap=True, overflow="ellipsis")
     for container in beaker["containers"]:
         table.add_row(
             *[str(value).lower() for value in (container["name"], container["status"], container["health"], container["uptime"], container["restart_count"])],
