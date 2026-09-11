@@ -1,0 +1,133 @@
+import json
+import subprocess
+from pathlib import Path
+
+import yaml
+
+LAB_ROOT = Path(__file__).resolve().parent
+CONFIG_PATH = LAB_ROOT / "lab_cli" / "cli_config.yaml"
+NETWORK = "lab-net"
+COMPOSE_ENV_FILE = LAB_ROOT / ".env"
+HEALTH_TIMEOUT = 100
+HEALTH_POLL_INTERVAL = 2
+
+
+def run(cmd, cwd=None, capture=False, timeout=None):
+    try:
+        return subprocess.run(cmd, cwd=cwd, capture_output=capture, text=True, timeout=timeout)
+    except (OSError, subprocess.TimeoutExpired):
+        return subprocess.CompletedProcess(cmd, 1, stdout="", stderr="")
+
+
+def compose_command(*args):
+    return ["docker", "compose", "--env-file", str(COMPOSE_ENV_FILE), *args]
+
+
+def command_text(cmd, cwd=None, timeout=5):
+    result = run(cmd, cwd=cwd, capture=True, timeout=timeout)
+    return result.stdout.strip() if result.returncode == 0 else ""
+
+
+def load_config():
+    with CONFIG_PATH.open() as config_file:
+        return yaml.safe_load(config_file)["beakers"]
+
+
+def beaker_aliases(beakers):
+    aliases = {}
+    for name, config in beakers.items():
+        aliases[name] = name
+        for alias in config.get("aliases", []):
+            if alias in aliases and aliases[alias] != name:
+                raise ValueError(f"duplicate beaker alias: {alias}")
+            aliases[alias] = name
+    return aliases
+
+
+def selected_beakers(beakers, requested):
+    aliases = beaker_aliases(beakers)
+    selected = []
+    for name in requested:
+        if name not in aliases:
+            raise SystemExit(f"unknown beaker or alias: {name}")
+        selected.append(aliases[name])
+    return selected
+
+
+def topological_order(beakers, selected=None):
+    ordered = []
+    visited = set()
+    aliases = beaker_aliases(beakers)
+
+    def visit(name):
+        name = aliases.get(name, name)
+        if name in visited:
+            return
+        visited.add(name)
+        for dependency in beakers[name].get("depends_on", []):
+            visit(dependency)
+        ordered.append(name)
+
+    for name in selected or beakers:
+        visit(name)
+    return ordered
+
+
+def container_names(beaker_path):
+    result = run(
+        compose_command("config", "--format", "json"),
+        cwd=beaker_path,
+        capture=True,
+    )
+    if result.returncode != 0:
+        return []
+    try:
+        config = json.loads(result.stdout)
+    except json.JSONDecodeError:
+        return []
+    return [service.get("container_name", name) for name, service in config.get("services", {}).items()]
+
+
+def parse_env_file():
+    values = {}
+    if not COMPOSE_ENV_FILE.exists():
+        return values
+    for line in COMPOSE_ENV_FILE.read_text().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        values[key] = value.strip().strip('"').strip("'")
+    return values
+
+
+def format_duration(seconds):
+    if seconds is None:
+        return "unavailable"
+    seconds = max(0, int(seconds))
+    days, seconds = divmod(seconds, 86400)
+    hours, seconds = divmod(seconds, 3600)
+    minutes, seconds = divmod(seconds, 60)
+    parts = []
+    if days:
+        parts.append(f"{days}d")
+    if hours or days:
+        parts.append(f"{hours}h")
+    if minutes or hours or days:
+        parts.append(f"{minutes}m")
+    parts.append(f"{seconds}s")
+    return " ".join(parts)
+
+
+def human_bytes(value):
+    if value is None:
+        return "unavailable"
+    value = float(value)
+    for unit in ("B", "KiB", "MiB", "GiB", "TiB"):
+        if abs(value) < 1024 or unit == "TiB":
+            return f"{value:.1f} {unit}"
+        value /= 1024
+
+
+def spinner_frame(index):
+    return "|/-\\"[index % 4]
