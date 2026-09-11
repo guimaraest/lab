@@ -94,3 +94,30 @@ def cmd_down(args):
 
         print(f"stopping '{name}'...")
         run(compose_command("down"), cwd=path)
+
+
+def beaker_up(name, build=False):
+    path = LAB_ROOT / name
+    if not (path / "docker-compose.yml").exists():
+        raise SystemExit(f"beaker '{name}' has no docker-compose.yml")
+    print(f"starting '{name}'...")
+    command = compose_command("up", "-d")
+    if build:
+        command.append("--build")
+    run(command, cwd=path)
+    wait_healthy(path, name)
+
+
+def beaker_down(name):
+    path = LAB_ROOT / name
+    if not (path / "docker-compose.yml").exists():
+        raise SystemExit(f"beaker '{name}' has no docker-compose.yml")
+    print(f"stopping '{name}'...")
+    run(compose_command("down"), cwd=path)
+
+
+def beaker_logs(name):
+    path = LAB_ROOT / name
+    if not (path / "docker-compose.yml").exists():
+        raise SystemExit(f"beaker '{name}' has no docker-compose.yml")
+    run(compose_command("logs"), cwd=path)

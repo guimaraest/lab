@@ -260,3 +260,20 @@ def cmd_status(args):
         print(json.dumps(report, indent=2))
     else:
         print_status(report)
+
+
+def get_beaker_status(name):
+    path = LAB_ROOT / name
+    if not (path / "docker-compose.yml").exists():
+        raise SystemExit(f"beaker '{name}' has no docker-compose.yml")
+    return beaker_status(name, path, docker_stats())
+
+
+def print_beaker_status(beaker):
+    domains = ", ".join(beaker["domains"]) or "none configured"
+    print(
+        f"{beaker['name']}: folder={beaker['folder_size_human']} "
+        f"uptime={beaker['uptime']} domains={domains}"
+    )
+    for container in beaker["containers"]:
+        print_container(container)
