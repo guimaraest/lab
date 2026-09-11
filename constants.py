@@ -28,6 +28,10 @@ def command_text(cmd, cwd=None, timeout=5):
     return result.stdout.strip() if result.returncode == 0 else ""
 
 
+def command_result(cmd, cwd=None, timeout=5):
+    return run(cmd, cwd=cwd, capture=True, timeout=timeout)
+
+
 def load_config():
     with CONFIG_PATH.open() as config_file:
         return yaml.safe_load(config_file)["beakers"]
