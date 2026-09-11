@@ -1,7 +1,8 @@
 import json
 import time
 
-from constants import *
+from lab_cli.constants import *
+from lab_cli.helpers import *
 
 
 def network_exists(name):

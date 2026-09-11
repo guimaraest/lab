@@ -1,4 +1,5 @@
-from constants import *
+from lab_cli.constants import *
+from lab_cli.helpers import *
 from lab_cli.lifecycle import beaker_down, beaker_logs, beaker_up
 from lab_cli.status import get_beaker_status, print_beaker_status
 

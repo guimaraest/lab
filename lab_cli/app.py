@@ -1,6 +1,6 @@
 import argparse
 
-from constants import *
+from lab_cli.constants import *
 from lab_cli.beaker import cmd_beaker
 from lab_cli.lifecycle import cmd_down, cmd_init, cmd_up
 from lab_cli.list_command import cmd_list

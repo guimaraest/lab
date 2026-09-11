@@ -1,15 +1,9 @@
 import json
 import subprocess
-from pathlib import Path
 
 import yaml
 
-LAB_ROOT = Path(__file__).resolve().parent
-CONFIG_PATH = LAB_ROOT / "lab_cli" / "cli_config.yaml"
-NETWORK = "lab-net"
-COMPOSE_ENV_FILE = LAB_ROOT / ".env"
-HEALTH_TIMEOUT = 100
-HEALTH_POLL_INTERVAL = 2
+from lab_cli.constants import *
 
 
 def run(cmd, cwd=None, capture=False, timeout=None):
@@ -19,17 +13,17 @@ def run(cmd, cwd=None, capture=False, timeout=None):
         return subprocess.CompletedProcess(cmd, 1, stdout="", stderr="")
 
 
-def compose_command(*args):
-    return ["docker", "compose", "--env-file", str(COMPOSE_ENV_FILE), *args]
+def command_result(cmd, cwd=None, timeout=5):
+    return run(cmd, cwd=cwd, capture=True, timeout=timeout)
 
 
 def command_text(cmd, cwd=None, timeout=5):
-    result = run(cmd, cwd=cwd, capture=True, timeout=timeout)
+    result = command_result(cmd, cwd=cwd, timeout=timeout)
     return result.stdout.strip() if result.returncode == 0 else ""
 
 
-def command_result(cmd, cwd=None, timeout=5):
-    return run(cmd, cwd=cwd, capture=True, timeout=timeout)
+def compose_command(*args):
+    return ["docker", "compose", "--env-file", str(COMPOSE_ENV_FILE), *args]
 
 
 def load_config():
@@ -78,11 +72,7 @@ def topological_order(beakers, selected=None):
 
 
 def container_names(beaker_path):
-    result = run(
-        compose_command("config", "--format", "json"),
-        cwd=beaker_path,
-        capture=True,
-    )
+    result = command_result(compose_command("config", "--format", "json"), cwd=beaker_path, timeout=10)
     if result.returncode != 0:
         return []
     try:
