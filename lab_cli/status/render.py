@@ -6,7 +6,7 @@ from rich.panel import Panel
 from rich.table import Table
 
 from lab_cli.constants import *
-from lab_cli.helpers import human_bytes
+from lab_cli.helpers import command_result, compose_command, human_bytes
 from lab_cli.status.collect import host_memory
 
 
@@ -46,6 +46,29 @@ def beaker_total_bytes(beaker):
     total = beaker.get("folder_size") or 0
     for volume in beaker.get("volumes", []):
         total += volume.get("size") or parse_size(volume.get("size_human")) or 0
+    return total + beaker_image_bytes(beaker)
+
+
+def beaker_image_bytes(beaker):
+    config = command_result(
+        compose_command("config", "--format", "json"),
+        cwd=beaker.get("path"),
+        timeout=10,
+    )
+    if config.returncode != 0:
+        return 0
+    try:
+        services = json.loads(config.stdout).get("services", {}).values()
+    except json.JSONDecodeError:
+        return 0
+    images = {service.get("image") for service in services if service.get("image")}
+    total = 0
+    for image in images:
+        result = command_result(["docker", "image", "inspect", image, "--format", "{{.Size}}"], timeout=5)
+        try:
+            total += int(result.stdout.strip()) if result.returncode == 0 else 0
+        except ValueError:
+            continue
     return total
 
 
@@ -66,7 +89,7 @@ def container_ram_bar(container, host_total):
     value = container["stats"].get("MemUsage", "")
     match = re.match(r"\s*([\d.]+\s*[KMGTPE]?i?B)", value, re.IGNORECASE)
     used = parse_size(match.group(1)) if match else None
-    return ratio_bar(used, host_total, value.split("/")[0].strip() if used is not None else "unavailable")
+    return ratio_bar(used, host_total, value.split("/")[0].strip().lower() if used is not None else "unavailable")
 
 
 def container_row(container):
@@ -80,7 +103,6 @@ def print_status(report):
     memory = host["memory"]
     cpu = host["cpu"]
     docker_disk = host["docker_disk"]
-    docker_summary = ", ".join(f"{label}={docker_disk[label].get('size', 'unavailable')}" for label in ("images", "containers", "local volumes", "build cache") if label in docker_disk) or "unavailable"
     fail2ban = host["fail2ban"]
     fail2ban_lines = []
     if fail2ban.get("available"):
@@ -93,47 +115,52 @@ def print_status(report):
     state_style = {"healthy": "green", "degraded": "yellow", "unknown": "yellow"}.get(report["status"], "red")
     used_disk = disk["used"]
     docker_total = docker_total_bytes(docker_disk)
-    storage_text = "\n".join([
-        f"RAM    {visual_bar((memory['used'] / memory['total']) if memory['total'] else None)} {memory['used_human']} / {memory['total_human']}",
-        f"Disk   {visual_bar((disk['used'] / disk['total']) if disk['total'] else None)} {disk['used_human']} / {disk['total_human']}",
-        f"Docker {visual_bar(docker_total / used_disk if docker_total and used_disk else None, color='#A78BFA')} {human_bytes(docker_total) if docker_total else 'unavailable'} ({storage_ratio_label(docker_total, used_disk)})",
-    ])
+    host_text = "\n".join([
+        f"[bold]status:[/bold] [{state_style}]{report['status']}[/{state_style}]",
+        f"uptime: {host['uptime']}    last restart: {host['last_restart'] or 'unavailable'}",
+        f"cpu: {cpu['usage_percent']}% used    load: {', '.join(f'{item:.2f}' for item in cpu['load'])}",
+        f"cpu temperature: {host['temperature_celsius']} c    last os upgrade: {host['last_os_upgrade'] or 'unavailable'}",
+        "fail2ban: " + "\n          ".join(fail2ban_lines),
+    ]).lower()
+    console.print(Panel(host_text, title="[bold #6366F1]lab host[/bold #6366F1]", border_style="#6366F1", expand=False))
+
+    storage_table = Table(box=None, show_header=False, padding=(0, 1), expand=False)
+    storage_table.add_column("resource", width=11, no_wrap=True)
+    storage_table.add_column("usage", no_wrap=True)
+    storage_table.add_column("size", no_wrap=True)
+    storage_table.add_column("share", no_wrap=True)
+    storage_table.add_row("ram", visual_bar((memory["used"] / memory["total"]) if memory["total"] else None), f"{memory['used_human']} / {memory['total_human']}".lower(), "")
+    storage_table.add_row("disk", visual_bar((disk["used"] / disk["total"]) if disk["total"] else None), f"{disk['used_human']} / {disk['total_human']}".lower(), "")
+    storage_table.add_row("docker", visual_bar(docker_total / used_disk if docker_total and used_disk else None, color="#A78BFA"), human_bytes(docker_total).lower() if docker_total else "unavailable", storage_ratio_label(docker_total, used_disk).lower())
     for beaker in report["beakers"]:
         beaker_total = beaker_total_bytes(beaker)
-        storage_text += "\n" + f"{beaker['name']:<11} {visual_bar(beaker_total / used_disk if beaker_total and used_disk else None, color='#818CF8')} {human_bytes(beaker_total) if beaker_total else 'unavailable'} ({storage_ratio_label(beaker_total, used_disk)})"
-    host_text = "\n".join([
-        f"[bold]Status:[/bold] [{state_style}]{report['status']}[/{state_style}]",
-        f"Uptime: {host['uptime']}    Last restart: {host['last_restart'] or 'unavailable'}",
-        f"CPU: {cpu['usage_percent']}% used    Load: {', '.join(f'{item:.2f}' for item in cpu['load'])}",
-        f"CPU temperature: {host['temperature_celsius']} C    Last OS upgrade: {host['last_os_upgrade'] or 'unavailable'}",
-        "Fail2ban: " + "\n          ".join(fail2ban_lines),
-    ])
-    console.print(Panel(host_text, title="[bold #6366F1]Lab Host[/bold #6366F1]", border_style="#6366F1", expand=False))
-    console.print(Panel(storage_text, title="[bold #6366F1]Storage[/bold #6366F1]", border_style="#818CF8", expand=False))
+        storage_table.add_row(
+            str(beaker["name"]).lower(),
+            visual_bar(beaker_total / used_disk if beaker_total and used_disk else None),
+            human_bytes(beaker_total).lower() if beaker_total else "unavailable",
+            storage_ratio_label(beaker_total, used_disk).lower(),
+        )
+    console.print(Panel(storage_table, title="[bold #6366F1]storage[/bold #6366F1]", border_style="#818CF8", expand=False))
 
-    table = Table(title="[bold #6366F1]Container Details[/bold #6366F1]", border_style="#818CF8", header_style="#A78BFA")
-    for column in ("Beaker", "Container", "Status", "Health", "Uptime", "Restarts", "CPU", "RAM"):
+    table = Table(title="[bold #6366F1]container details[/bold #6366F1]", border_style="#818CF8", header_style="#A78BFA")
+    for column in ("beaker", "container", "status", "health", "uptime", "restarts", "cpu", "ram"):
         table.add_column(column)
     for beaker in report["beakers"]:
         for container in beaker["containers"]:
             style = "green" if container["status"] == "running" and container["health"] in ("healthy", "none") else "red"
-            table.add_row(beaker["name"], container["name"], container["status"], container["health"], container["uptime"], str(container["restart_count"]), container_cpu_bar(container), container_ram_bar(container, memory["total"]), style=style)
+            table.add_row(*[str(value).lower() for value in (beaker["name"], container["name"], container["status"], container["health"], container["uptime"], container["restart_count"])], container_cpu_bar(container), container_ram_bar(container, memory["total"]), style=style)
     console.print(table)
 
 
 def print_beaker_status(beaker):
     console = Console()
     host_total = host_memory()["total"]
-    table = Table(title=f"[bold #6366F1]{beaker['name']}[/bold #6366F1]", border_style="#818CF8", header_style="#A78BFA")
-    for column in ("Container", "Status", "Health", "Uptime", "Restarts", "CPU", "RAM"):
+    table = Table(title=f"[bold #6366F1]{str(beaker['name']).lower()}[/bold #6366F1]", border_style="#818CF8", header_style="#A78BFA")
+    for column in ("container", "status", "health", "uptime", "restarts", "cpu", "ram"):
         table.add_column(column)
     for container in beaker["containers"]:
         table.add_row(
-            container["name"],
-            container["status"],
-            container["health"],
-            container["uptime"],
-            str(container["restart_count"]),
+            *[str(value).lower() for value in (container["name"], container["status"], container["health"], container["uptime"], container["restart_count"])],
             container_cpu_bar(container),
             container_ram_bar(container, host_total),
         )
