@@ -1,0 +1,7 @@
+INDIGO = "#6366F1"
+INDIGO_FILL = "#818CF8"
+INDIGO_LIGHT = "#A78BFA"
+DIM = "dim"
+HEALTHY = "green"
+DEGRADED = "yellow"
+ERROR = "red"

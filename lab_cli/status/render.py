@@ -1,5 +1,6 @@
 import json
 import re
+from dataclasses import dataclass
 
 from rich.console import Console
 from rich.panel import Panel
@@ -8,18 +9,39 @@ from rich.table import Table
 from lab_cli.constants import *
 from lab_cli.helpers import command_result, compose_command, human_bytes
 from lab_cli.status.collect import host_memory
+from lab_cli.status.colors import DEGRADED, DIM, ERROR, HEALTHY, INDIGO, INDIGO_FILL, INDIGO_LIGHT
 
 
 BAR_WIDTH = 18
 CONTAINER_BAR_WIDTH = 8
 
 
+@dataclass(frozen=True)
+class MetricBar:
+    label: str
+    value: str
+    ratio: float | None = None
+    color: str = INDIGO_FILL
+
+    def render(self):
+        return visual_bar(self.ratio, color=self.color)
+
+
+def key_value_panel(title, values, border=INDIGO):
+    table = Table(box=None, show_header=False, padding=(0, 1), expand=False)
+    table.add_column("label", style="bold", no_wrap=True)
+    table.add_column("value", no_wrap=False)
+    for label, value in values:
+        table.add_row(label.lower(), str(value).lower())
+    return Panel(table, title=f"[bold {border}]{title.lower()}[/bold {border}]", border_style=border, expand=False)
+
+
 def visual_bar(ratio, width=BAR_WIDTH, color="#818CF8"):
     if ratio is None:
-        return "[dim]░" * width + "[/dim]"
+        return f"[{DIM}]░" * width + f"[/{DIM}]"
     ratio = max(0.0, min(1.0, ratio))
     filled = round(ratio * width)
-    return f"[{color}]{'█' * filled}[/{color}][dim]{'░' * (width - filled)}[/dim]"
+    return f"[{color}]{'█' * filled}[/{color}][{DIM}]{'░' * (width - filled)}[/{DIM}]"
 
 
 def parse_size(value):
@@ -103,42 +125,62 @@ def print_status(report):
     fail2ban_lines = []
     if fail2ban.get("available"):
         for jail in fail2ban["jails"]:
-            fail2ban_lines.append(f"{jail['name']}: failed {jail.get('currently_failed', 'unavailable')} / {jail.get('total_failed', 'unavailable')}, banned {jail.get('currently_banned', 'unavailable')} / {jail.get('total_banned', 'unavailable')} ({', '.join(jail.get('banned_ips', [])) or 'no IPs'})")
+            fail2ban_lines.append(
+                f"jail {jail['name']}: failures {jail.get('currently_failed', 'unavailable')} current / "
+                f"{jail.get('total_failed', 'unavailable')} total; bans "
+                f"{jail.get('currently_banned', 'unavailable')} current / "
+                f"{jail.get('total_banned', 'unavailable')} total; ips: "
+                f"{', '.join(jail.get('banned_ips', [])) or 'none'}"
+            )
     else:
-        fail2ban_lines.append(f"unavailable: {fail2ban.get('reason', 'unknown error')}")
+        fail2ban_lines.append(f"status unavailable: {fail2ban.get('reason', 'unknown error')}")
 
     console = Console()
     state_style = {"healthy": "green", "degraded": "yellow", "unknown": "yellow"}.get(report["status"], "red")
     used_disk = disk["used"]
     docker_total = docker_total_bytes(docker_disk)
-    host_text = "\n".join([
-        f"[bold]status:[/bold] [{state_style}]{report['status']}[/{state_style}]",
-        f"uptime: {host['uptime']}    last restart: {host['last_restart'] or 'unavailable'}",
-        f"cpu: {cpu['usage_percent']}% used    load: {', '.join(f'{item:.2f}' for item in cpu['load'])}",
-        f"cpu temperature: {host['temperature_celsius']} c    last os upgrade: {host['last_os_upgrade'] or 'unavailable'}",
-        "fail2ban: " + "\n          ".join(fail2ban_lines),
-    ]).lower()
-    console.print(Panel(host_text, title="[bold #6366F1]lab host[/bold #6366F1]", border_style="#6366F1", expand=False))
+    console.print(key_value_panel("os", [
+        ("status", f"[{state_style}]{report['status']}[/{state_style}]"),
+        ("os version", host.get("os_version", "unavailable")),
+        ("uptime", host["uptime"]),
+        ("last restart", host["last_restart"] or "unavailable"),
+        ("cpu", f"{cpu['usage_percent']}% used"),
+        ("load", ", ".join(f"{item:.2f}" for item in cpu["load"])),
+        ("temperature", f"{host['temperature_celsius']} c"),
+        ("last os upgrade", host["last_os_upgrade"] or "unavailable"),
+    ]))
+
+    cloudflare = host.get("cloudflare", {})
+    console.print(key_value_panel("networking", [
+        ("cloudflare tunnel", cloudflare.get("state", "unavailable")),
+        ("tunnel id", cloudflare.get("tunnel_id", "unavailable")),
+        ("domains", ", ".join(cloudflare.get("domains", [])) or "none configured"),
+        ("accesses", cloudflare.get("access_count", "unavailable")),
+        ("docker network", NETWORK),
+        ("fail2ban", "\n".join(fail2ban_lines)),
+    ], border=INDIGO_LIGHT))
 
     storage_table = Table(box=None, show_header=False, padding=(0, 1), expand=False)
     storage_table.add_column("resource", width=11, no_wrap=True)
     storage_table.add_column("usage", no_wrap=True)
     storage_table.add_column("size", no_wrap=True)
     storage_table.add_column("share", no_wrap=True)
-    storage_table.add_row("ram", visual_bar((memory["used"] / memory["total"]) if memory["total"] else None), f"{memory['used_human']} / {memory['total_human']}".lower(), storage_ratio_label(memory["used"], memory["total"]).lower())
-    storage_table.add_row("disk", visual_bar((disk["used"] / disk["total"]) if disk["total"] else None), f"{disk['used_human']} / {disk['total_human']}".lower(), storage_ratio_label(disk["used"], disk["total"]).lower())
-    storage_table.add_row("docker", visual_bar(docker_total / used_disk if docker_total and used_disk else None), human_bytes(docker_total).lower() if docker_total else "unavailable", storage_ratio_label(docker_total, used_disk).lower())
+    storage_metrics = [
+        MetricBar("ram", f"{memory['used_human']} / {memory['total_human']}", memory["used"] / memory["total"] if memory["total"] else None),
+        MetricBar("disk", f"{disk['used_human']} / {disk['total_human']}", disk["used"] / disk["total"] if disk["total"] else None),
+        MetricBar("docker", human_bytes(docker_total) if docker_total else "unavailable", docker_total / used_disk if docker_total and used_disk else None),
+    ]
+    for metric in storage_metrics:
+        total = memory["total"] if metric.label == "ram" else disk["total"] if metric.label == "disk" else used_disk
+        value = memory["used"] if metric.label == "ram" else disk["used"] if metric.label == "disk" else docker_total
+        storage_table.add_row(metric.label, metric.render(), metric.value.lower(), storage_ratio_label(value, total).lower())
     for beaker in report["beakers"]:
         beaker_total = beaker_total_bytes(beaker)
-        storage_table.add_row(
-            str(beaker["name"]).lower(),
-            visual_bar(beaker_total / used_disk if beaker_total and used_disk else None),
-            human_bytes(beaker_total).lower() if beaker_total else "unavailable",
-            storage_ratio_label(beaker_total, used_disk).lower(),
-        )
-    console.print(Panel(storage_table, title="[bold #6366F1]storage[/bold #6366F1]", border_style="#818CF8", expand=False))
+        metric = MetricBar(str(beaker["name"]).lower(), human_bytes(beaker_total) if beaker_total else "unavailable", beaker_total / used_disk if beaker_total and used_disk else None)
+        storage_table.add_row(metric.label, metric.render(), metric.value.lower(), storage_ratio_label(beaker_total, used_disk).lower())
+    console.print(Panel(storage_table, title=f"[bold {INDIGO}]storage[/bold {INDIGO}]", border_style=INDIGO_FILL, expand=False))
 
-    table = Table(title="[bold #6366F1]container details[/bold #6366F1]", border_style="#818CF8", header_style="#A78BFA", padding=(0, 1), expand=False)
+    table = Table(title=f"[bold {INDIGO}]container details[/bold {INDIGO}]", border_style=INDIGO_FILL, header_style=INDIGO_LIGHT, padding=(0, 1), expand=False)
     for column in ("beaker", "container", "status", "health", "uptime", "restarts", "cpu", "ram"):
         table.add_column(column, no_wrap=True, overflow="ellipsis")
     for beaker in report["beakers"]:
@@ -151,7 +193,7 @@ def print_status(report):
 def print_beaker_status(beaker):
     console = Console()
     host_total = host_memory()["total"]
-    table = Table(title=f"[bold #6366F1]{str(beaker['name']).lower()}[/bold #6366F1]", border_style="#818CF8", header_style="#A78BFA", padding=(0, 1), expand=False)
+    table = Table(title=f"[bold {INDIGO}]{str(beaker['name']).lower()}[/bold {INDIGO}]", border_style=INDIGO_FILL, header_style=INDIGO_LIGHT, padding=(0, 1), expand=False)
     for column in ("container", "status", "health", "uptime", "restarts", "cpu", "ram"):
         table.add_column(column, no_wrap=True, overflow="ellipsis")
     for container in beaker["containers"]:

@@ -74,14 +74,19 @@ def last_os_upgrade():
     return max((path.stat().st_mtime for path in existing), default=None)
 
 
+def os_version():
+    result = command_result(["uname", "-r"], timeout=3)
+    return result.stdout.strip() if result.returncode == 0 and result.stdout.strip() else "unavailable"
+
+
 def fail2ban_report():
     if not shutil.which("fail2ban-client"):
         return {"available": False, "reason": "fail2ban-client not installed", "jails": []}
 
     def fail2ban_command(*args):
-        result = command_result(["sudo", "-n", "fail2ban-client", *args], timeout=5)
+        result = command_result(["sudo", "fail2ban-client", *args], timeout=5)
         if result.returncode != 0:
-            return None, result.stderr.strip() or "permission denied or sudo is not configured"
+            return None, result.stderr.strip() or "permission denied reading the fail2ban socket"
         return result.stdout, None
 
     output, error = fail2ban_command("status")
@@ -89,7 +94,8 @@ def fail2ban_report():
         return {"available": False, "reason": error or "no fail2ban status returned", "jails": []}
     match = re.search(r"Jail list:\s*(.*)", output)
     jails = []
-    for jail in [item.strip() for item in (match.group(1).split(",") if match else []) if item.strip()]:
+    jail_names = [item.strip() for item in (match.group(1).split(",") if match else []) if item.strip()]
+    for jail in [name for name in jail_names if name == "sshd"]:
         jail_output, jail_error = fail2ban_command("status", jail)
         report = {"name": jail, "banned_ips": []}
         if jail_error:
@@ -104,6 +110,8 @@ def fail2ban_report():
         if banned and banned.group(1).strip():
             report["banned_ips"] = banned.group(1).split()
         jails.append(report)
+    if "sshd" not in jail_names:
+        jails.append({"name": "sshd", "available": False, "reason": "sshd jail not reported", "banned_ips": []})
     return {"available": True, "jails": jails}
 
 
@@ -241,6 +249,39 @@ def docker_disk_usage():
     return usage
 
 
+def cloudflare_status():
+    config_path = LAB_ROOT / "cloudflared" / "config.yml"
+    domains = []
+    tunnel_id = None
+    if config_path.exists():
+        config = yaml.safe_load(config_path.read_text()) or {}
+        tunnel_id = config.get("tunnel")
+        domains = [entry["hostname"] for entry in config.get("ingress", []) if entry.get("hostname")]
+
+    metrics = ""
+    for url in ("http://127.0.0.1:20241/metrics", "http://127.0.0.1:2000/metrics"):
+        result = command_result(["curl", "-fsS", "--max-time", "2", url], timeout=3)
+        if result.returncode == 0:
+            metrics = result.stdout
+            break
+
+    access_count = None
+    for metric in ("cloudflared_tunnel_total_requests", "cloudflared_tunnel_request_count", "cloudflared_proxy_connect_requests_total"):
+        match = re.search(rf"^{metric}(?:\{{[^}}]*\}})?\s+([\d.eE+-]+)$", metrics, re.MULTILINE)
+        if match:
+            access_count = sum(float(value) for value in re.findall(rf"^{metric}(?:\{{[^}}]*\}})?\s+([\d.eE+-]+)$", metrics, re.MULTILINE))
+            break
+
+    tunnel_state = "unavailable"
+    cloudflare_container = docker_inspect("cloudflared")
+    if cloudflare_container:
+        tunnel_state = cloudflare_container.get("State", {}).get("Status", "unavailable")
+        health = cloudflare_container.get("State", {}).get("Health", {}).get("Status")
+        if health:
+            tunnel_state = health
+    return {"tunnel_id": tunnel_id, "domains": domains, "state": tunnel_state, "access_count": access_count}
+
+
 def beaker_status(name, path, stats):
     containers = [container_status(container, stats) for container in container_names(path)]
     starts = [item["started_at"] for item in containers if item["started_at"]]
@@ -260,7 +301,7 @@ def host_status():
     disk = shutil.disk_usage("/")
     boot = boot_time()
     upgrade = last_os_upgrade()
-    return {"uptime": format_duration(time.time() - boot) if boot else "unavailable", "last_restart": datetime.fromtimestamp(boot).isoformat(timespec="seconds") if boot else None, "cpu": {"usage_percent": host_cpu_usage(), "load": list(os.getloadavg())}, "memory": {"used": memory["used"], "used_human": human_bytes(memory["used"]), "total": memory["total"], "total_human": human_bytes(memory["total"]), "percent": memory["percent"]}, "temperature_celsius": host_temperature(), "disk": {"used": disk.used, "used_human": human_bytes(disk.used), "free": disk.free, "free_human": human_bytes(disk.free), "total": disk.total, "total_human": human_bytes(disk.total), "percent": round(100 * disk.used / disk.total, 1)}, "docker_disk": docker_disk_usage(), "last_os_upgrade": datetime.fromtimestamp(upgrade).isoformat(timespec="seconds") if upgrade else None, "fail2ban": fail2ban_report()}
+    return {"uptime": format_duration(time.time() - boot) if boot else "unavailable", "last_restart": datetime.fromtimestamp(boot).isoformat(timespec="seconds") if boot else None, "os_version": os_version(), "cpu": {"usage_percent": host_cpu_usage(), "load": list(os.getloadavg())}, "memory": {"used": memory["used"], "used_human": human_bytes(memory["used"]), "total": memory["total"], "total_human": human_bytes(memory["total"]), "percent": memory["percent"]}, "temperature_celsius": host_temperature(), "disk": {"used": disk.used, "used_human": human_bytes(disk.used), "free": disk.free, "free_human": human_bytes(disk.free), "total": disk.total, "total_human": human_bytes(disk.total), "percent": round(100 * disk.used / disk.total, 1)}, "docker_disk": docker_disk_usage(), "last_os_upgrade": datetime.fromtimestamp(upgrade).isoformat(timespec="seconds") if upgrade else None, "fail2ban": fail2ban_report(), "cloudflare": cloudflare_status()}
 
 
 def overall_state(beakers):
