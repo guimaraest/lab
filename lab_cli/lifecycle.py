@@ -77,7 +77,8 @@ def cmd_up(args):
         if args.build:
             command.append("--build")
         run(command, cwd=path)
-        wait_healthy(path, name)
+        if not args.detach:
+            wait_healthy(path, name)
         if args.logs:
             run(compose_command("logs"), cwd=path)
 

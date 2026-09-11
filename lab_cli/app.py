@@ -14,15 +14,21 @@ def main():
     sub.add_parser("init", help="create the shared docker network")
     sub.add_parser("list", help="list configured beakers")
 
-    up_parser = sub.add_parser("up", help="start beakers in dependency order")
-    up_parser.add_argument(
+    def add_run_arguments(parser):
+        parser.add_argument(
         "beakers",
         nargs="*",
         metavar="BEAKER_OR_ALIAS",
         help="beaker names or aliases (defaults to all autostart beakers)",
-    )
-    up_parser.add_argument("--build", action="store_true", help="build images before starting")
-    up_parser.add_argument("--logs", action="store_true", help="show logs after starting")
+        )
+        parser.add_argument("--build", action="store_true", help="build images before starting")
+        parser.add_argument("--logs", action="store_true", help="show logs after starting")
+        parser.add_argument("-d", "--detach", action="store_true", help="start and return without waiting for health")
+
+    up_parser = sub.add_parser("up", help="start beakers in dependency order")
+    add_run_arguments(up_parser)
+    run_parser = sub.add_parser("run", help="start beakers in dependency order")
+    add_run_arguments(run_parser)
 
     down_parser = sub.add_parser("down", help="stop beakers in reverse dependency order")
     down_parser.add_argument(
@@ -51,6 +57,7 @@ def main():
         "init": cmd_init,
         "list": cmd_list,
         "up": cmd_up,
+        "run": cmd_up,
         "down": cmd_down,
         "status": cmd_status,
         "beaker": cmd_beaker,

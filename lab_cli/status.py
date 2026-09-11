@@ -7,6 +7,9 @@ from datetime import datetime
 from pathlib import Path
 
 import yaml
+from rich.console import Console
+from rich.panel import Panel
+from rich.table import Table
 
 from constants import *
 
@@ -80,15 +83,29 @@ def last_os_upgrade():
 
 def fail2ban_report():
     if not shutil.which("fail2ban-client"):
-        return {"available": False, "jails": []}
-    output = command_text(["fail2ban-client", "status"], timeout=5)
+        return {"available": False, "reason": "fail2ban-client not installed", "jails": []}
+
+    def fail2ban_command(*args):
+        result = command_result(["sudo", "-n", "fail2ban-client", *args], timeout=5)
+        if result.returncode != 0:
+            return None, result.stderr.strip() or "permission denied or sudo is not configured"
+        return result.stdout, None
+
+    output, error = fail2ban_command("status")
+    if error:
+        return {"available": False, "reason": error, "jails": []}
     if not output:
-        return {"available": False, "jails": []}
+        return {"available": False, "reason": "no fail2ban status returned", "jails": []}
     match = re.search(r"Jail list:\s*(.*)", output)
     jails = []
     for jail in [item.strip() for item in (match.group(1).split(",") if match else []) if item.strip()]:
-        jail_output = command_text(["fail2ban-client", "status", jail], timeout=5)
-        report = {"name": jail}
+        jail_output, jail_error = fail2ban_command("status", jail)
+        report = {"name": jail, "banned_ips": []}
+        if jail_error:
+            report["available"] = False
+            report["reason"] = jail_error
+            jails.append(report)
+            continue
         for label, key in (
             ("Currently banned", "currently_banned"),
             ("Total banned", "total_banned"),
@@ -98,6 +115,9 @@ def fail2ban_report():
             found = re.search(rf"{re.escape(label)}:\s*(\d+)", jail_output)
             if found:
                 report[key] = int(found.group(1))
+        banned = re.search(r"Banned IP list:\s*(.*)", jail_output)
+        if banned and banned.group(1).strip():
+            report["banned_ips"] = banned.group(1).split()
         jails.append(report)
     return {"available": True, "jails": jails}
 
@@ -365,11 +385,15 @@ def print_container(container):
     stats = container["stats"]
     cpu = stats.get("CPUPerc", "unavailable")
     memory = stats.get("MemUsage", "unavailable")
-    print(
-        f"    {container['name']}: {container['status']} / health={container['health']} "
-        f"uptime={container['uptime']} restarts={container['restart_count']} "
-        f"cpu={cpu} ram={memory}"
-    )
+    return [
+        container["name"],
+        container["status"],
+        container["health"],
+        container["uptime"],
+        str(container["restart_count"]),
+        cpu,
+        memory,
+    ]
 
 
 def print_status(report):
@@ -377,35 +401,52 @@ def print_status(report):
     disk = host["disk"]
     memory = host["memory"]
     cpu = host["cpu"]
-    print(f"Lab status: {report['status']}")
-    print(f"Host uptime: {host['uptime']} | last restart: {host['last_restart'] or 'unavailable'}")
-    print(f"CPU: {cpu['usage_percent']}% used | load: {', '.join(f'{item:.2f}' for item in cpu['load'])}")
-    print(f"RAM: {memory['used_human']} / {memory['total_human']} ({memory['percent']}%)")
-    print(f"Disk /: {disk['free_human']} free / {disk['total_human']} ({disk['percent']}% used)")
+    console = Console()
+    state_style = {"healthy": "green", "degraded": "yellow", "unknown": "yellow"}.get(report["status"], "red")
     docker_disk = host["docker_disk"]
-    if docker_disk:
-        disk_parts = []
-        for label in ("images", "containers", "local volumes", "build cache"):
-            if label in docker_disk:
-                disk_parts.append(f"{label}={docker_disk[label].get('size', 'unavailable')}")
-        print(f"Docker disk: {', '.join(disk_parts)}")
+    docker_summary = ", ".join(
+        f"{label}={docker_disk[label].get('size', 'unavailable')}"
+        for label in ("images", "containers", "local volumes", "build cache")
+        if label in docker_disk
+    ) or "unavailable"
+    fail2ban = host["fail2ban"]
+    fail2ban_lines = []
+    if fail2ban.get("available"):
+        for jail in fail2ban["jails"]:
+            fail2ban_lines.append(
+                f"{jail['name']}: failed {jail.get('currently_failed', 'unavailable')} / "
+                f"{jail.get('total_failed', 'unavailable')}, banned "
+                f"{jail.get('currently_banned', 'unavailable')} / {jail.get('total_banned', 'unavailable')} "
+                f"({', '.join(jail.get('banned_ips', [])) or 'no IPs'})"
+            )
     else:
-        print("Docker disk: unavailable")
-    print(f"CPU temperature: {host['temperature_celsius']} C | last OS upgrade: {host['last_os_upgrade'] or 'unavailable'}")
-    print(f"Fail2ban: {host['fail2ban']}")
-    print()
+        fail2ban_lines.append(f"unavailable: {fail2ban.get('reason', 'unknown error')}")
+    host_text = "\n".join([
+        f"[bold]Status:[/bold] [{state_style}]{report['status']}[/{state_style}]",
+        f"Uptime: {host['uptime']}    Last restart: {host['last_restart'] or 'unavailable'}",
+        f"CPU: {cpu['usage_percent']}% used    Load: {', '.join(f'{item:.2f}' for item in cpu['load'])}",
+        f"RAM: {memory['used_human']} / {memory['total_human']} ({memory['percent']}%)",
+        f"Disk /: {disk['free_human']} free / {disk['total_human']} ({disk['percent']}% used)",
+        f"Docker disk: {docker_summary}",
+        f"CPU temperature: {host['temperature_celsius']} C    Last OS upgrade: {host['last_os_upgrade'] or 'unavailable'}",
+        "Fail2ban: " + "\n          ".join(fail2ban_lines),
+    ])
+    console.print(Panel(host_text, title="[bold #6366F1]Lab Host[/bold #6366F1]", border_style="#6366F1", expand=False))
+
+    table = Table(title="[bold #6366F1]Beaker Containers[/bold #6366F1]", border_style="#818CF8", header_style="#A78BFA")
+    for column in ("Beaker", "Container", "Status", "Health", "Uptime", "Restarts", "CPU", "RAM"):
+        table.add_column(column)
+    for beaker in report["beakers"]:
+        for container in beaker["containers"]:
+            row = print_container(container)
+            row.insert(0, beaker["name"])
+            style = "green" if container["status"] == "running" and container["health"] in ("healthy", "none") else "red"
+            table.add_row(*row, style=style)
+    console.print(table)
     for beaker in report["beakers"]:
         domains = ", ".join(beaker["domains"]) or "none configured"
-        print(
-            f"{beaker['name']}: folder={beaker['folder_size_human']} "
-            f"uptime={beaker['uptime']} domains={domains}"
-        )
-        if beaker["volumes"]:
-            print("  volumes: " + ", ".join(
-                f"{volume['name']}={volume['size_human']}" for volume in beaker["volumes"]
-            ))
-        for container in beaker["containers"]:
-            print_container(container)
+        volumes = ", ".join(f"{volume['name']}={volume['size_human']}" for volume in beaker["volumes"]) or "none"
+        console.print(f"[bold #6366F1]{beaker['name']}[/bold #6366F1]  folder={beaker['folder_size_human']}  uptime={beaker['uptime']}  domains={domains}  volumes={volumes}")
 
 
 def cmd_status(args):
@@ -432,10 +473,10 @@ def get_beaker_status(name):
 
 
 def print_beaker_status(beaker):
-    domains = ", ".join(beaker["domains"]) or "none configured"
-    print(
-        f"{beaker['name']}: folder={beaker['folder_size_human']} "
-        f"uptime={beaker['uptime']} domains={domains}"
-    )
+    console = Console()
+    table = Table(title=f"[bold #6366F1]{beaker['name']}[/bold #6366F1]", border_style="#818CF8", header_style="#A78BFA")
+    for column in ("Container", "Status", "Health", "Uptime", "Restarts", "CPU", "RAM"):
+        table.add_column(column)
     for container in beaker["containers"]:
-        print_container(container)
+        table.add_row(*print_container(container))
+    console.print(table)
