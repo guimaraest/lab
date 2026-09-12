@@ -8,7 +8,7 @@ from rich.table import Table
 
 from lab_cli.constants import *
 from lab_cli.helpers import command_result, compose_command, human_bytes
-from lab_cli.notifications import format_notification
+from lab_cli.notifications import format_relative_notification
 from lab_cli.status.collect import host_memory
 from lab_cli.status.colors import DEGRADED, DIM, ERROR, HEALTHY, INDIGO, INDIGO_FILL, INDIGO_LIGHT
 
@@ -190,7 +190,7 @@ def print_status(report):
             table.add_row(*[str(value).lower() for value in (beaker["name"], container["name"], container["status"], container["health"], container["uptime"], container["restart_count"])], container_cpu_bar(container), container_ram_bar(container, memory["total"]), style=style)
     console.print(table)
     notifications = report.get("notifications", [])
-    notification_text = "\n".join(format_notification(event) for event in notifications) or "none"
+    notification_text = "\n".join(format_relative_notification(event) for event in notifications) or "none"
     console.print(Panel(notification_text, title=f"[bold {INDIGO}]recent notifications[/bold {INDIGO}]", border_style=INDIGO_FILL, expand=False))
 
 

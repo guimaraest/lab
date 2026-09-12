@@ -71,6 +71,27 @@ def format_notification(event):
     return f"{timestamp} [{level:<7}] {message}{suffix}"
 
 
+def format_relative_notification(event):
+    timestamp = event.get("timestamp")
+    try:
+        elapsed = max(0, int((datetime.now(timezone.utc) - datetime.fromisoformat(timestamp)).total_seconds()))
+        if elapsed < 60:
+            age = "just now" if elapsed < 5 else f"{elapsed}s ago"
+        elif elapsed < 3600:
+            age = f"{elapsed // 60}m ago"
+        elif elapsed < 86400:
+            age = f"{elapsed // 3600}h ago"
+        else:
+            age = f"{elapsed // 86400}d ago"
+    except (TypeError, ValueError):
+        age = "unknown time"
+    level = str(event.get("level", "info")).upper()
+    message = event.get("message", "")
+    details = {key: value for key, value in event.get("details", {}).items() if not key.startswith("_")}
+    suffix = " " + " ".join(f"{key}={value}" for key, value in sorted(details.items())) if details else ""
+    return f"{age:<10} [{level:<7}] {message}{suffix}"
+
+
 def print_recent_notifications(limit=50):
     events = recent_notifications(limit)
     if not events:
