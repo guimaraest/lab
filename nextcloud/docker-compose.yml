@@ -2,7 +2,7 @@ services:
   db:
     image: mariadb:10.11
     container_name: nextcloud-db
-    restart: always
+    restart: unless-stopped
     command: --transaction-isolation=READ-COMMITTED --log-bin=binlog --binlog-format=ROW
     volumes:
       - db_data:/var/lib/mysql
@@ -19,14 +19,14 @@ services:
   redis:
     image: redis:8-alpine
     container_name: nextcloud-redis
-    restart: always
+    restart: unless-stopped
     networks:
       - internal
 
   app:
     image: nextcloud:34.0.2-apache
     container_name: nextcloud-app
-    restart: always
+    restart: unless-stopped
     depends_on:
       - db
       - redis
