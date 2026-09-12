@@ -1,11 +1,8 @@
 import json
-import os
-import sys
-import urllib.error
-import urllib.request
 from datetime import datetime, timezone
 
-from lab_cli.constants import COMPOSE_ENV_FILE, NOTIFICATION_LOG
+from lab_cli.constants import NOTIFICATION_LOG
+from lab_cli.discord_webhooks import DiscordWebhook
 
 
 class NotificationService:
@@ -21,38 +18,12 @@ class NotificationService:
     def __init__(self, callback=None, log_path=NOTIFICATION_LOG, webhook_url=None):
         self.callback = callback
         self.log_path = log_path
-        self.webhook_url = webhook_url or self._load_webhook_url()
-
-    @staticmethod
-    def _load_webhook_url():
-        if os.environ.get("WARNING_DISCORD_WEBHOOK"):
-            return os.environ["WARNING_DISCORD_WEBHOOK"]
-        if not COMPOSE_ENV_FILE.exists():
-            return None
-        for line in COMPOSE_ENV_FILE.read_text().splitlines():
-            line = line.strip()
-            if line.startswith("WARNING_DISCORD_WEBHOOK="):
-                return line.split("=", 1)[1].strip().strip('"').strip("'") or None
-        return None
+        self.webhook = DiscordWebhook(webhook_url) if webhook_url else DiscordWebhook.from_env("WARNING_DISCORD_WEBHOOK")
 
     def _send_warning_to_discord(self, event):
-        if not self.webhook_url:
+        if not self.webhook:
             return
-        payload = {"embeds": [self._discord_embed(event)]}
-        request = urllib.request.Request(
-            self.webhook_url,
-            data=json.dumps(payload).encode("utf-8"),
-            headers={
-                "Content-Type": "application/json",
-                "User-Agent": "lab-cli/1.0",
-            },
-            method="POST",
-        )
-        try:
-            with urllib.request.urlopen(request, timeout=5):
-                pass
-        except (OSError, urllib.error.URLError) as error:
-            print(f"warning: could not send notification to Discord: {error}", file=sys.stderr)
+        self.webhook.send({"embeds": [self._discord_embed(event)]})
 
     @classmethod
     def _discord_embed(cls, event):
@@ -105,6 +76,10 @@ notification_service = NotificationService()
 
 def notify(level, message, **details):
     notification_service.notify(level, message, **details)
+
+
+def notify_server_up():
+    notify("warning", "server is up", source="ofelia")
 
 
 def notify_once(key, level, message, **details):

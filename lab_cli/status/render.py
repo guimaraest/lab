@@ -1,5 +1,6 @@
 import json
 import re
+from io import StringIO
 from dataclasses import dataclass
 
 from rich.console import Console
@@ -116,7 +117,13 @@ def container_ram_bar(container, host_total):
     return ratio_bar(used, host_total, value.split("/")[0].strip().lower() if used is not None else "unavailable", CONTAINER_BAR_WIDTH)
 
 
-def print_status(report):
+def render_status(report):
+    output = StringIO()
+    print_status(report, console=Console(file=output, force_terminal=False, color_system=None, width=120))
+    return output.getvalue().rstrip()
+
+
+def print_status(report, console=None):
     host = report["host"]
     disk = host["disk"]
     memory = host["memory"]
@@ -136,7 +143,7 @@ def print_status(report):
     else:
         fail2ban_lines.append(f"status unavailable: {fail2ban.get('reason', 'unknown error')}")
 
-    console = Console()
+    console = console or Console()
     state_style = {"healthy": "green", "degraded": "yellow", "unknown": "yellow"}.get(report["status"], "red")
     used_disk = disk["used"]
     docker_total = docker_total_bytes(docker_disk)

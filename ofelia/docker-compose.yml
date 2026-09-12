@@ -1,9 +1,13 @@
 services:
   ofelia:
-    image: mcuadros/ofelia:latest
+    build:
+      context: ..
+      dockerfile: ofelia/Dockerfile
+    image: lab-ofelia:latest
     container_name: ofelia
     restart: unless-stopped
-    command: daemon --docker
+    entrypoint: ["/bin/sh", "-c"]
+    command: "python3 /lab/cli.py server-up; exec /usr/bin/ofelia daemon --docker"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ..:/lab:ro
@@ -18,6 +22,8 @@ services:
       ofelia.enabled: "true"
       ofelia.job-exec.daily-restart.schedule: "0 4 * * *"
       ofelia.job-exec.daily-restart.command: "python3 /lab/cli.py restart --tolerance=high"
+      ofelia.job-local.hourly-status.schedule: "@hourly"
+      ofelia.job-local.hourly-status.command: "python3 /lab/cli.py status --discord"
 
 networks:
   lab-net:

@@ -7,7 +7,7 @@ from lab_cli.beaker import cmd_beaker
 from lab_cli.lifecycle import cmd_down, cmd_init, cmd_restart, cmd_up
 from lab_cli.helpers import load_config
 from lab_cli.list_command import cmd_list
-from lab_cli.notifications import print_recent_notifications
+from lab_cli.notifications import notify_server_up, print_recent_notifications
 from lab_cli.status import cmd_status
 
 
@@ -81,6 +81,8 @@ def main():
 
     status_parser = sub.add_parser("status", help="show detailed host and beaker status")
     status_parser.add_argument("--json", action="store_true", help="output structured JSON")
+    status_parser.add_argument("--discord", action="store_true", help="send the full report to the Discord logs webhook")
+    sub.add_parser("server-up", help="send the server-up warning")
 
     beaker_parser = sub.add_parser("beaker", help="run an action for one beaker")
     beaker_parser.add_argument("name", metavar="NAME", help="beaker name or alias")
@@ -108,6 +110,7 @@ def main():
         "restart": cmd_restart,
         "down": cmd_down,
         "status": cmd_status,
+        "server-up": lambda args: notify_server_up(),
         "beaker": cmd_beaker,
     }
     mutating = args.command in {"init", "up", "run", "restart", "down"} or (
