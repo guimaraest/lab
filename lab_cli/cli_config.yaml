@@ -13,6 +13,7 @@ beakers:
     depends_on: [nextcloud, ofelia]
   minecraft:
     aliases: []
+    enabled: false
     autostart: false
     allow_restart: false
     depends_on: [ofelia]

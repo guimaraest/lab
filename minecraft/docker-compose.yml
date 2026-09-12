@@ -2,6 +2,7 @@ services:
   minecraft:
     image: itzg/minecraft-server:java25
     container_name: minecraft
+    profiles: [disabled]
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "mc-health"]
@@ -39,6 +40,7 @@ services:
 
   playit:
     image: ghcr.io/playit-cloud/playit-agent:0.17
+    profiles: [disabled]
     restart: unless-stopped
     network_mode: service:minecraft
     env_file:

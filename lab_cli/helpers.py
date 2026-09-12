@@ -119,6 +119,10 @@ def selected_beakers(beakers, requested):
     return selected
 
 
+def beaker_enabled(config):
+    return config.get("enabled", True)
+
+
 def topological_order(beakers, selected=None):
     ordered = []
     visited = set()

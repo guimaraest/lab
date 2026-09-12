@@ -119,6 +119,9 @@ def cmd_up(args):
 
     for name in topological_order(beakers, selected or None):
         config = beakers[name]
+        if not beaker_enabled(config):
+            print(f"skipping '{name}' (disabled)")
+            continue
         if not selected and not config.get("autostart", True):
             print(f"skipping '{name}' (autostart disabled)")
             continue
@@ -146,7 +149,11 @@ def cmd_up(args):
 def cmd_restart(args):
     settings = load_settings()
     beakers = settings["beakers"]
-    selected = [name for name, config in beakers.items() if config.get("allow_restart", False)]
+    selected = [
+        name
+        for name, config in beakers.items()
+        if beaker_enabled(config) and config.get("allow_restart", False)
+    ]
     order = [name for name in topological_order(beakers) if name in selected]
     retries = settings.get("restart_max_retries", 5)
 
@@ -180,6 +187,12 @@ def cmd_restart(args):
 def cmd_down(args):
     beakers = load_config()
     selected = selected_beakers(beakers, args.beakers)
+    notify(
+        "warning",
+        "server shutdown started",
+        source="shutdown",
+        beakers=", ".join(selected) if selected else "all",
+    )
 
     for name in reversed(topological_order(beakers, selected or None)):
         path = LAB_ROOT / name
@@ -192,6 +205,9 @@ def cmd_down(args):
 
 
 def beaker_up(name, build=False, tolerance="low"):
+    config = load_config().get(name)
+    if config is not None and not beaker_enabled(config):
+        raise SystemExit(f"beaker '{name}' is disabled")
     path = LAB_ROOT / name
     if not (path / "docker-compose.yml").exists():
         raise SystemExit(f"beaker '{name}' has no docker-compose.yml")
@@ -211,11 +227,15 @@ def beaker_down(name):
     path = LAB_ROOT / name
     if not (path / "docker-compose.yml").exists():
         raise SystemExit(f"beaker '{name}' has no docker-compose.yml")
+    notify("warning", f"beaker shutdown started: {name}", source="shutdown", beaker=name)
     print(f"stopping '{name}'...")
     run(compose_command("down"), cwd=path)
 
 
 def restart_beaker(name):
+    config = load_config().get(name)
+    if config is not None and not beaker_enabled(config):
+        raise SystemExit(f"beaker '{name}' is disabled")
     notify("warning", f"beaker restart started: {name}", source="restart", beaker=name)
     beaker_down(name)
     beaker_up(name)
