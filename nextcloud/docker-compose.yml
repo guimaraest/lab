@@ -17,7 +17,7 @@ services:
       test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
       interval: 10s
       timeout: 5s
-      retries: 12
+      retries: ${HEALTHCHECK_RETRIES}
     networks:
       - internal
 
@@ -29,7 +29,7 @@ services:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
-      retries: 12
+      retries: ${HEALTHCHECK_RETRIES}
     networks:
       - internal
 
@@ -55,7 +55,7 @@ services:
       test: ["CMD", "curl", "-f", "http://localhost/status.php"]
       interval: 5s
       timeout: 3s
-      retries: 20
+      retries: ${HEALTHCHECK_RETRIES}
     networks:
       - lab-net
       - internal

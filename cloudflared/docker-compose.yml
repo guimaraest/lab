@@ -10,7 +10,7 @@ services:
       test: ["CMD", "cloudflared", "tunnel", "ready"]
       interval: 15s
       timeout: 10s
-      retries: 12
+      retries: ${HEALTHCHECK_RETRIES}
     networks:
       - lab-net
 
