@@ -11,6 +11,13 @@ from lab_cli.constants import COMPOSE_ENV_FILE, NOTIFICATION_LOG
 class NotificationService:
     """Collect notifications locally and forward warnings to Discord."""
 
+    _DISCORD_COLORS = {
+        "WARNING": 0xF0A202,
+        "ERROR": 0xD64550,
+        "STATUS": 0x2A9D8F,
+        "INFO": 0x3A86FF,
+    }
+
     def __init__(self, callback=None, log_path=NOTIFICATION_LOG, webhook_url=None):
         self.callback = callback
         self.log_path = log_path
@@ -31,13 +38,10 @@ class NotificationService:
     def _send_warning_to_discord(self, event):
         if not self.webhook_url:
             return
-        details = event.get("details", {})
-        details = {key: value for key, value in details.items() if not key.startswith("_")}
-        suffix = " " + " ".join(f"{key}={value}" for key, value in sorted(details.items())) if details else ""
-        content = f"WARNING: {event['message']}{suffix}"
+        payload = {"embeds": [self._discord_embed(event)]}
         request = urllib.request.Request(
             self.webhook_url,
-            data=json.dumps({"content": content[:2000]}).encode("utf-8"),
+            data=json.dumps(payload).encode("utf-8"),
             headers={
                 "Content-Type": "application/json",
                 "User-Agent": "lab-cli/1.0",
@@ -49,6 +53,32 @@ class NotificationService:
                 pass
         except (OSError, urllib.error.URLError) as error:
             print(f"warning: could not send notification to Discord: {error}", file=sys.stderr)
+
+    @classmethod
+    def _discord_embed(cls, event):
+        level = str(event.get("level", "warning")).upper()
+        details = {
+            key: value
+            for key, value in event.get("details", {}).items()
+            if not key.startswith("_")
+        }
+        fields = [
+            {
+                "name": str(key).replace("_", " ").title(),
+                "value": f"`{str(value)[:1020]}`",
+                "inline": key in {"source", "beaker", "container"},
+            }
+            for key, value in sorted(details.items())
+        ]
+        source = details.get("source", "lab-cli")
+        return {
+            "title": f"{level.title()} detected",
+            "description": str(event.get("message", ""))[:4096],
+            "color": cls._DISCORD_COLORS.get(level, cls._DISCORD_COLORS["WARNING"]),
+            "fields": fields[:25],
+            "timestamp": event.get("timestamp"),
+            "footer": {"text": f"lab-cli • {source}"},
+        }
 
     def notify(self, level, message, **details):
         event = {
