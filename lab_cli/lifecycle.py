@@ -149,6 +149,7 @@ def cmd_restart(args):
     retries = settings.get("restart_max_retries", 5)
 
     tolerance = getattr(args, "tolerance", "low")
+    notify("warning", "server restart started", source="restart", tolerance=tolerance)
     for attempt in range(1, retries + 1):
         print(f"restart attempt {attempt}/{retries}...")
         notify("status", "restart attempt started", source="restart", attempt=attempt, total_attempts=retries)
@@ -213,6 +214,7 @@ def beaker_down(name):
 
 
 def restart_beaker(name):
+    notify("warning", f"beaker restart started: {name}", source="restart", beaker=name)
     beaker_down(name)
     beaker_up(name)
 

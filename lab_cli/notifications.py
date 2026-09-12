@@ -35,11 +35,21 @@ def notify(level, message, **details):
     notification_service.notify(level, message, **details)
 
 
+def notify_once(key, level, message, **details):
+    for event in recent_notifications(None):
+        if event.get("details", {}).get("_dedupe_key") == key:
+            return False
+    details["_dedupe_key"] = key
+    notify(level, message, **details)
+    return True
+
+
 def recent_notifications(limit=50):
-    if limit <= 0 or not NOTIFICATION_LOG.exists():
+    if limit == 0 or not NOTIFICATION_LOG.exists():
         return []
     events = []
-    for line in NOTIFICATION_LOG.read_text().splitlines()[-limit:]:
+    lines = NOTIFICATION_LOG.read_text().splitlines()
+    for line in lines if limit is None else lines[-limit:]:
         try:
             events.append(json.loads(line))
         except json.JSONDecodeError:
@@ -56,6 +66,7 @@ def format_notification(event):
     level = str(event.get("level", "info")).upper()
     message = event.get("message", "")
     details = event.get("details", {})
+    details = {key: value for key, value in details.items() if not key.startswith("_")}
     suffix = " " + " ".join(f"{key}={value}" for key, value in sorted(details.items())) if details else ""
     return f"{timestamp} [{level:<7}] {message}{suffix}"
 

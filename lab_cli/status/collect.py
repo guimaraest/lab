@@ -12,7 +12,7 @@ import psutil
 
 from lab_cli.constants import *
 from lab_cli.helpers import *
-from lab_cli.notifications import notify
+from lab_cli.notifications import notify, notify_once
 
 
 def host_cpu_usage():
@@ -123,14 +123,14 @@ def docker_inspect(container):
             return {}
         message = f"docker inspect {container} failed: {error or 'unknown error'}"
         print(f"warning: {message}", file=sys.stderr)
-        notify("warning", message, source="status", container=container)
+        notify_once(f"docker-inspect:{container}:{error}", "warning", message, source="status", container=container)
         return {}
     try:
         return json.loads(result.stdout)[0]
     except (IndexError, json.JSONDecodeError) as error:
         message = f"could not parse docker inspect {container}: {error}"
         print(f"warning: {message}", file=sys.stderr)
-        notify("warning", message, source="status", container=container)
+        notify_once(f"docker-inspect-parse:{container}:{error}", "warning", message, source="status", container=container)
         return {}
 
 
@@ -139,7 +139,7 @@ def docker_stats():
     if result.returncode != 0:
         message = f"docker stats failed: {result.stderr.strip() or 'unknown error'}"
         print(f"warning: {message}", file=sys.stderr)
-        notify("warning", message, source="status")
+        notify_once(f"docker-stats:{result.stderr.strip()}", "warning", message, source="status")
         return {}
     stats = {}
     for line in result.stdout.splitlines():
@@ -151,7 +151,7 @@ def docker_stats():
         except json.JSONDecodeError as error:
             message = f"could not parse docker stats row: {error}"
             print(f"warning: {message}", file=sys.stderr)
-            notify("warning", message, source="status")
+            notify_once(f"docker-stats-parse:{error}", "warning", message, source="status")
     return stats
 
 
@@ -170,7 +170,17 @@ def container_status(container, stats):
         message = f"docker stats returned no row for running container {container}"
         print(f"warning: {message}", file=sys.stderr)
         notify("warning", message, source="status", container=container)
-    return {"name": container, "status": state.get("Status", "unavailable"), "health": state.get("Health", {}).get("Status", "none"), "started_at": started, "uptime": format_duration(time.time() - started_timestamp) if started_timestamp else "unavailable", "restart_count": state.get("RestartCount", 0), "stats": stats.get(container, {})}
+    restart_count = state.get("RestartCount", 0)
+    if restart_count:
+        notify_once(
+            f"container-restart:{container}:{restart_count}",
+            "warning",
+            f"container {container} has restarted",
+            source="status",
+            container=container,
+            restart_count=restart_count,
+        )
+    return {"name": container, "status": state.get("Status", "unavailable"), "health": state.get("Health", {}).get("Status", "none"), "started_at": started, "uptime": format_duration(time.time() - started_timestamp) if started_timestamp else "unavailable", "restart_count": restart_count, "stats": stats.get(container, {})}
 
 
 def beaker_domains(name):
@@ -322,7 +332,7 @@ def host_status():
     disk = shutil.disk_usage("/")
     boot = boot_time()
     upgrade = last_os_upgrade()
-    return {"uptime": format_duration(time.time() - boot) if boot else "unavailable", "last_restart": datetime.fromtimestamp(boot).isoformat(timespec="seconds") if boot else None, "os_version": os_version(), "cpu": {"usage_percent": host_cpu_usage(), "load": list(os.getloadavg())}, "memory": {"used": memory["used"], "used_human": human_bytes(memory["used"]), "total": memory["total"], "total_human": human_bytes(memory["total"]), "percent": memory["percent"]}, "temperature_celsius": host_temperature(), "disk": {"used": disk.used, "used_human": human_bytes(disk.used), "free": disk.free, "free_human": human_bytes(disk.free), "total": disk.total, "total_human": human_bytes(disk.total), "percent": round(100 * disk.used / disk.total, 1)}, "docker_disk": docker_disk_usage(), "last_os_upgrade": datetime.fromtimestamp(upgrade).isoformat(timespec="seconds") if upgrade else None, "fail2ban": fail2ban_report(), "cloudflare": cloudflare_status()}
+    return {"uptime": format_duration(time.time() - boot) if boot else "unavailable", "boot_time": boot, "last_restart": datetime.fromtimestamp(boot).isoformat(timespec="seconds") if boot else None, "os_version": os_version(), "cpu": {"usage_percent": host_cpu_usage(), "load": list(os.getloadavg())}, "memory": {"used": memory["used"], "used_human": human_bytes(memory["used"]), "total": memory["total"], "total_human": human_bytes(memory["total"]), "percent": memory["percent"]}, "temperature_celsius": host_temperature(), "disk": {"used": disk.used, "used_human": human_bytes(disk.used), "free": disk.free, "free_human": human_bytes(disk.free), "total": disk.total, "total_human": human_bytes(disk.total), "percent": round(100 * disk.used / disk.total, 1)}, "docker_disk": docker_disk_usage(), "last_os_upgrade": datetime.fromtimestamp(upgrade).isoformat(timespec="seconds") if upgrade else None, "fail2ban": fail2ban_report(), "cloudflare": cloudflare_status()}
 
 
 def overall_state(beakers):
