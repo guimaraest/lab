@@ -13,25 +13,14 @@ def network_exists(name):
     return run(["docker", "network", "inspect", name], capture=True).returncode == 0
 
 
-def wait_healthy(beaker_path, name, tolerance="low"):
+def wait_healthy(beaker_path, name):
     names = container_names(beaker_path)
     if not names:
         return True
 
-    config = load_settings()["beakers"].get(name, {})
-    poll_interval = (
-        HIGH_TOLERANCE_HEALTH_POLL_INTERVAL
-        if tolerance == "high"
-        else config.get("wait_seconds", LOW_TOLERANCE_HEALTH_POLL_INTERVAL)
-    )
-    health_timeout = (
-        HIGH_TOLERANCE_HEALTH_TIMEOUT
-        if tolerance == "high"
-        else LOW_TOLERANCE_HEALTH_TIMEOUT
-    )
-    deadline = time.time() + health_timeout
+    started_at = time.monotonic()
     frame = 0
-    while time.time() < deadline:
+    while True:
         all_ready = True
         waiting_for = []
         for container in names:
@@ -68,11 +57,24 @@ def wait_healthy(beaker_path, name, tolerance="low"):
                     all_ready = False
                     waiting_for.append(f"{container} (unavailable)")
                     continue
-                health = status
-                ready = status == "running"
-            elif isinstance(health_state, dict) and isinstance(health_state.get("Status"), str):
-                health = health_state["Status"]
-                ready = health == "healthy"
+                if status != "running":
+                    message = f"{container} has no healthcheck and is not running ({status})"
+                    print(f"warning: {message}")
+                    notify("warning", message, source="healthcheck", beaker=name, container=container)
+                    return False
+                continue
+            elif isinstance(health_state, dict):
+                health = health_state.get("Status")
+                if health == "unhealthy":
+                    message = f"{container} reported unhealthy after Docker exhausted its healthcheck retries"
+                    print(f"warning: {message}")
+                    notify("warning", message, source="healthcheck", beaker=name, container=container)
+                    return False
+                if health == "healthy":
+                    continue
+                waiting_for.append(f"{container} ({health})")
+                all_ready = False
+                continue
             else:
                 message = f"unexpected docker health data for {container}: {health_state!r}"
                 print(f"warning: {message}", file=sys.stderr)
@@ -80,9 +82,6 @@ def wait_healthy(beaker_path, name, tolerance="low"):
                 all_ready = False
                 waiting_for.append(f"{container} (invalid health data)")
                 continue
-            if not ready:
-                all_ready = False
-                waiting_for.append(f"{container} ({health})")
         if all_ready:
             print(f"\r{name}: ready" + " " * 20, flush=True)
             return True
@@ -93,13 +92,16 @@ def wait_healthy(beaker_path, name, tolerance="low"):
             flush=True,
         )
         frame += 1
-        time.sleep(poll_interval)
-
-    print()
-    message = f"'{name}' did not report healthy within {health_timeout}s, continuing anyway"
-    print(f"warning: {message}")
-    notify("warning", message, source="healthcheck", beaker=name)
-    return False
+        if time.monotonic() - started_at >= HEALTHCHECK_SAFETY_CAP_SECONDS:
+            print()
+            message = (
+                f"'{name}' healthcheck safety cap reached after "
+                f"{HEALTHCHECK_SAFETY_CAP_SECONDS}s while waiting for Docker health"
+            )
+            print(f"warning: {message}")
+            notify("warning", message, source="healthcheck", beaker=name)
+            return False
+        time.sleep(HEALTH_POLL_INTERVAL)
 
 
 def cmd_init(args):
@@ -136,7 +138,7 @@ def cmd_up(args):
             env["HEALTHCHECK_RETRIES"] = str(HIGH_TOLERANCE_HEALTHCHECK_RETRIES)
         run(command, cwd=path, env=env)
         if not args.detach:
-            wait_healthy(path, name, tolerance=args.tolerance)
+            wait_healthy(path, name)
         if args.logs:
             run(compose_command("logs"), cwd=path)
 
@@ -202,7 +204,7 @@ def beaker_up(name, build=False, tolerance="low"):
         env = os.environ.copy()
         env["HEALTHCHECK_RETRIES"] = str(HIGH_TOLERANCE_HEALTHCHECK_RETRIES)
     run(command, cwd=path, env=env)
-    return wait_healthy(path, name, tolerance=tolerance)
+    return wait_healthy(path, name)
 
 
 def beaker_down(name):

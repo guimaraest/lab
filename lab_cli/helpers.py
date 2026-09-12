@@ -55,13 +55,6 @@ def validate_config(settings):
             warned.add(message)
 
     for name, config in beakers.items():
-        wait_seconds = config.get("wait_seconds")
-        if wait_seconds is not None and (
-            not isinstance(wait_seconds, (int, float))
-            or isinstance(wait_seconds, bool)
-            or wait_seconds <= 0
-        ):
-            raise SystemExit(f"invalid config: beaker '{name}' 'wait_seconds' must be positive")
         for dependency in config.get("depends_on", []):
             if dependency not in beakers:
                 warn(f"beaker '{name}' depends on unknown beaker '{dependency}'")
