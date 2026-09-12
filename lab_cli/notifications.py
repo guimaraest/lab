@@ -38,7 +38,10 @@ class NotificationService:
         request = urllib.request.Request(
             self.webhook_url,
             data=json.dumps({"content": content[:2000]}).encode("utf-8"),
-            headers={"Content-Type": "application/json"},
+            headers={
+                "Content-Type": "application/json",
+                "User-Agent": "lab-cli/1.0",
+            },
             method="POST",
         )
         try:
