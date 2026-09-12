@@ -6,8 +6,10 @@ services:
     image: lab-ofelia:latest
     container_name: ofelia
     restart: unless-stopped
+    env_file:
+      - ../.env
     entrypoint: ["/bin/sh", "-c"]
-    command: "python3 /lab/cli.py server-up; exec /usr/bin/ofelia daemon --docker"
+    command: "python3 /usr/local/bin/lab-ofelia-start.py; exec /usr/bin/ofelia daemon --docker"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ..:/lab:ro
