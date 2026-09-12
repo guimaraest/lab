@@ -5,12 +5,13 @@ from lab_cli.status import get_beaker_status, print_beaker_status
 
 
 def set_autostart(name, value):
-    config = load_config()
+    settings = load_settings()
+    config = settings["beakers"]
     if name not in config:
         raise SystemExit(f"unknown beaker: {name}")
     config[name]["autostart"] = value
     with CONFIG_PATH.open("w") as config_file:
-        yaml.safe_dump({"beakers": config}, config_file, sort_keys=False)
+        yaml.safe_dump(settings, config_file, sort_keys=False)
     print(f"{name}: autostart={str(value).lower()}")
 
 

@@ -1,13 +1,23 @@
+restart_max_retries: 5
+
 beakers:
   nextcloud:
     aliases: [nas]
     autostart: true
-    depends_on: []
+    allow_restart: true
+    depends_on: [ofelia]
   cloudflared:
     aliases: [cloudflare, tunnel]
     autostart: true
-    depends_on: [nextcloud]
+    allow_restart: true
+    depends_on: [nextcloud, ofelia]
   minecraft:
     aliases: []
     autostart: false
+    allow_restart: true
+    depends_on: [ofelia]
+  ofelia:
+    aliases: []
+    autostart: true
+    allow_restart: false
     depends_on: []

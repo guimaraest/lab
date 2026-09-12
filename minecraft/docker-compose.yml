@@ -3,6 +3,11 @@ services:
     image: itzg/minecraft-server:java25
     container_name: minecraft
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "mc-health"]
+      interval: 30s
+      timeout: 10s
+      retries: 20
     tty: true
     stdin_open: true
     env_file:
@@ -41,3 +46,8 @@ services:
 
     depends_on:
       - minecraft
+    healthcheck:
+      test: ["CMD-SHELL", "kill -0 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 10

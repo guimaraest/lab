@@ -1,0 +1,24 @@
+services:
+  ofelia:
+    image: mcuadros/ofelia:latest
+    container_name: ofelia
+    restart: unless-stopped
+    command: daemon --docker
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ..:/lab:ro
+    networks:
+      - lab-net
+    healthcheck:
+      test: ["CMD-SHELL", "kill -0 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 10
+    labels:
+      ofelia.enabled: "true"
+      ofelia.job-exec.daily-restart.schedule: "0 4 * * *"
+      ofelia.job-exec.daily-restart.command: "python3 /lab/cli.py restart"
+
+networks:
+  lab-net:
+    external: true

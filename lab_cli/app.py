@@ -3,6 +3,7 @@ import argparse
 from lab_cli.constants import *
 from lab_cli.beaker import cmd_beaker
 from lab_cli.lifecycle import cmd_down, cmd_init, cmd_restart, cmd_up
+from lab_cli.helpers import load_config
 from lab_cli.list_command import cmd_list
 from lab_cli.status import cmd_status
 
@@ -55,6 +56,7 @@ def main():
     flag_parser.add_argument("flag_value", choices=["true", "false"])
 
     args = parser.parse_args()
+    load_config()
     commands = {
         "init": cmd_init,
         "list": cmd_list,

@@ -1,3 +1,4 @@
+import argparse
 import json
 import time
 
@@ -85,14 +86,31 @@ def cmd_up(args):
 
 
 def cmd_restart(args):
-    beakers = load_config()
+    settings = load_settings()
+    beakers = settings["beakers"]
+    selected = [name for name, config in beakers.items() if config.get("allow_restart", False)]
+    order = [name for name in topological_order(beakers) if name in selected]
+    retries = settings.get("restart_max_retries", 5)
 
-    for name in topological_order(beakers):
-        config = beakers[name]
-        if not config.get("autostart", True):
-            print(f"skipping '{name}' (autostart disabled)")
-            continue
-        restart_beaker(name)
+    for attempt in range(1, retries + 1):
+        print(f"restart attempt {attempt}/{retries}...")
+        for name in reversed(order):
+            beaker_down(name)
+        healthy = True
+        for name in order:
+            if not beaker_up(name):
+                healthy = False
+                break
+        if healthy:
+            print("scheduled restart completed successfully")
+            return
+
+    print(
+        "restart retries exhausted; bringing the entire server down "
+        "because the stack could not be verified"
+    )
+    # Shut down the full graph so no service remains in a partially verified state.
+    cmd_down(argparse.Namespace(beakers=[]))
 
 
 def cmd_down(args):
@@ -118,7 +136,7 @@ def beaker_up(name, build=False):
     if build:
         command.append("--build")
     run(command, cwd=path)
-    wait_healthy(path, name)
+    return wait_healthy(path, name)
 
 
 def beaker_down(name):

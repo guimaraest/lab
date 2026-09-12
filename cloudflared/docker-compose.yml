@@ -6,6 +6,11 @@ services:
     volumes:
       - ./:/etc/cloudflared
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "cloudflared", "tunnel", "ready"]
+      interval: 15s
+      timeout: 10s
+      retries: 12
     networks:
       - lab-net
 

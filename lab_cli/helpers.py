@@ -1,5 +1,6 @@
 import json
 import subprocess
+import sys
 
 import yaml
 
@@ -26,9 +27,73 @@ def compose_command(*args):
     return ["docker", "compose", "--env-file", str(COMPOSE_ENV_FILE), *args]
 
 
-def load_config():
+def load_settings():
     with CONFIG_PATH.open() as config_file:
-        return yaml.safe_load(config_file)["beakers"]
+        settings = yaml.safe_load(config_file) or {}
+    validate_config(settings)
+    return settings
+
+
+def load_config():
+    return load_settings()["beakers"]
+
+
+def validate_config(settings):
+    beakers = settings.get("beakers")
+    if not isinstance(beakers, dict):
+        raise SystemExit("invalid config: 'beakers' must be a mapping")
+    retries = settings.get("restart_max_retries")
+    if not isinstance(retries, int) or isinstance(retries, bool) or retries < 1:
+        raise SystemExit("invalid config: 'restart_max_retries' must be a positive integer")
+
+    warned = set()
+    def warn(message):
+        if message not in warned:
+            print(f"warning: {message}", file=sys.stderr)
+            warned.add(message)
+
+    for name, config in beakers.items():
+        for dependency in config.get("depends_on", []):
+            if dependency not in beakers:
+                warn(f"beaker '{name}' depends on unknown beaker '{dependency}'")
+
+    visiting = []
+    visited = set()
+    def visit(name):
+        if name in visiting:
+            cycle = visiting[visiting.index(name):] + [name]
+            warn(f"circular dependency: {' -> '.join(cycle)}")
+            return
+        if name in visited or name not in beakers:
+            return
+        visiting.append(name)
+        for dependency in beakers[name].get("depends_on", []):
+            visit(dependency)
+        visiting.pop()
+        visited.add(name)
+
+    for name in beakers:
+        visit(name)
+
+    for name, config in beakers.items():
+        if not config.get("allow_restart", False):
+            continue
+        dependencies = set()
+        stack = list(config.get("depends_on", []))
+        while stack:
+            dependency = stack.pop()
+            if dependency in dependencies or dependency not in beakers:
+                continue
+            dependencies.add(dependency)
+            stack.extend(beakers[dependency].get("depends_on", []))
+        for dependency in dependencies:
+            if dependency != "ofelia" and not beakers[dependency].get("allow_restart", False):
+                warn(
+                    f"beaker '{name}' cannot be safely restarted without its "
+                    f"non-restartable dependency '{dependency}' also cycling"
+                )
+
+    return settings
 
 
 def beaker_aliases(beakers):
@@ -55,15 +120,20 @@ def selected_beakers(beakers, requested):
 def topological_order(beakers, selected=None):
     ordered = []
     visited = set()
+    visiting = set()
     aliases = beaker_aliases(beakers)
 
     def visit(name):
         name = aliases.get(name, name)
         if name in visited:
             return
-        visited.add(name)
+        if name in visiting or name not in beakers:
+            return
+        visiting.add(name)
         for dependency in beakers[name].get("depends_on", []):
             visit(dependency)
+        visiting.remove(name)
+        visited.add(name)
         ordered.append(name)
 
     for name in selected or beakers:
