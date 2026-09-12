@@ -14,7 +14,7 @@ beakers:
   minecraft:
     aliases: []
     autostart: false
-    allow_restart: true
+    allow_restart: false
     depends_on: [ofelia]
   ofelia:
     aliases: []
