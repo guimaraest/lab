@@ -118,7 +118,10 @@ def fail2ban_report():
 def docker_inspect(container):
     result = command_result(["docker", "inspect", container], timeout=5)
     if result.returncode != 0:
-        message = f"docker inspect {container} failed: {result.stderr.strip() or 'unknown error'}"
+        error = result.stderr.strip()
+        if "no such object" in error.lower() or "no such container" in error.lower():
+            return {}
+        message = f"docker inspect {container} failed: {error or 'unknown error'}"
         print(f"warning: {message}", file=sys.stderr)
         notify("warning", message, source="status", container=container)
         return {}

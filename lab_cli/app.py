@@ -5,6 +5,7 @@ from lab_cli.beaker import cmd_beaker
 from lab_cli.lifecycle import cmd_down, cmd_init, cmd_restart, cmd_up
 from lab_cli.helpers import load_config
 from lab_cli.list_command import cmd_list
+from lab_cli.notifications import print_recent_notifications
 from lab_cli.status import cmd_status
 
 
@@ -14,6 +15,8 @@ def main():
 
     sub.add_parser("init", help="create the shared docker network")
     sub.add_parser("list", help="list configured beakers")
+    logs_parser = sub.add_parser("logs", help="show recent lab notifications")
+    logs_parser.add_argument("--limit", type=int, default=50, help="number of recent notifications to show (default: 50)")
 
     def add_run_arguments(parser):
         parser.description = (
@@ -87,6 +90,7 @@ def main():
     commands = {
         "init": cmd_init,
         "list": cmd_list,
+        "logs": lambda args: print_recent_notifications(args.limit),
         "up": cmd_up,
         "run": cmd_up,
         "restart": cmd_restart,
