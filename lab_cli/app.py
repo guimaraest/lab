@@ -16,6 +16,10 @@ def main():
     sub.add_parser("list", help="list configured beakers")
 
     def add_run_arguments(parser):
+        parser.description = (
+            "start beakers in dependency order; low tolerance is the default, "
+            "while high tolerance uses more patient health checks"
+        )
         parser.add_argument(
         "beakers",
         nargs="*",
@@ -25,12 +29,31 @@ def main():
         parser.add_argument("--build", action="store_true", help="build images before starting")
         parser.add_argument("--logs", action="store_true", help="show logs after starting")
         parser.add_argument("-d", "--detach", action="store_true", help="start and return without waiting for health")
+        parser.add_argument(
+            "--tolerance",
+            choices=["low", "high"],
+            default="low",
+            help="healthcheck tolerance (default: low)",
+        )
 
     up_parser = sub.add_parser("up", help="start beakers in dependency order")
     add_run_arguments(up_parser)
     run_parser = sub.add_parser("run", help="start beakers in dependency order")
     add_run_arguments(run_parser)
-    sub.add_parser("restart", help="restart all autostart beakers in dependency order")
+    restart_parser = sub.add_parser(
+        "restart",
+        help="restart all autostart beakers in dependency order",
+        description=(
+            "restart all autostart beakers; low tolerance is the default, while "
+            "high tolerance is intended for the scheduled ofelia restart"
+        ),
+    )
+    restart_parser.add_argument(
+        "--tolerance",
+        choices=["low", "high"],
+        default="low",
+        help="healthcheck tolerance for this restart",
+    )
 
     down_parser = sub.add_parser("down", help="stop beakers in reverse dependency order")
     down_parser.add_argument(
@@ -49,7 +72,11 @@ def main():
     beaker_sub.add_parser("status", help="show beaker status")
     beaker_sub.add_parser("up", help="start the beaker")
     beaker_sub.add_parser("down", help="stop the beaker")
-    beaker_sub.add_parser("restart", help="restart the beaker")
+    beaker_sub.add_parser(
+        "restart",
+        help="restart the beaker using low healthcheck tolerance",
+        description="restart this beaker using the default low healthcheck tolerance",
+    )
     beaker_sub.add_parser("logs", help="show beaker logs")
     flag_parser = beaker_sub.add_parser("flag", help="change a beaker flag")
     flag_parser.add_argument("flag_name", choices=["autostart"])

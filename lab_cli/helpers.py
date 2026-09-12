@@ -8,9 +8,9 @@ from lab_cli.constants import *
 from lab_cli.notifications import notify
 
 
-def run(cmd, cwd=None, capture=False, timeout=None):
+def run(cmd, cwd=None, capture=False, timeout=None, env=None):
     try:
-        return subprocess.run(cmd, cwd=cwd, capture_output=capture, text=True, timeout=timeout)
+        return subprocess.run(cmd, cwd=cwd, capture_output=capture, text=True, timeout=timeout, env=env)
     except (OSError, subprocess.TimeoutExpired):
         return subprocess.CompletedProcess(cmd, 1, stdout="", stderr="")
 
@@ -55,6 +55,13 @@ def validate_config(settings):
             warned.add(message)
 
     for name, config in beakers.items():
+        wait_seconds = config.get("wait_seconds")
+        if wait_seconds is not None and (
+            not isinstance(wait_seconds, (int, float))
+            or isinstance(wait_seconds, bool)
+            or wait_seconds <= 0
+        ):
+            raise SystemExit(f"invalid config: beaker '{name}' 'wait_seconds' must be positive")
         for dependency in config.get("depends_on", []):
             if dependency not in beakers:
                 warn(f"beaker '{name}' depends on unknown beaker '{dependency}'")

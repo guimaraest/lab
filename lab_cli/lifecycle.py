@@ -1,5 +1,7 @@
 import argparse
 import json
+import os
+import sys
 import time
 
 from lab_cli.constants import *
@@ -11,30 +13,76 @@ def network_exists(name):
     return run(["docker", "network", "inspect", name], capture=True).returncode == 0
 
 
-def wait_healthy(beaker_path, name):
+def wait_healthy(beaker_path, name, tolerance="low"):
     names = container_names(beaker_path)
     if not names:
         return True
 
-    deadline = time.time() + HEALTH_TIMEOUT
+    config = load_settings()["beakers"].get(name, {})
+    poll_interval = (
+        HIGH_TOLERANCE_HEALTH_POLL_INTERVAL
+        if tolerance == "high"
+        else config.get("wait_seconds", LOW_TOLERANCE_HEALTH_POLL_INTERVAL)
+    )
+    health_timeout = (
+        HIGH_TOLERANCE_HEALTH_TIMEOUT
+        if tolerance == "high"
+        else LOW_TOLERANCE_HEALTH_TIMEOUT
+    )
+    deadline = time.time() + health_timeout
     frame = 0
     while time.time() < deadline:
         all_ready = True
         waiting_for = []
         for container in names:
             inspect = run(
-                ["docker", "inspect", "--format", "{{.State.Health.Status}}|{{.State.Status}}", container],
+                ["docker", "inspect", "--format", "{{json .State.Health}}", container],
                 capture=True,
             )
             if inspect.returncode != 0:
+                message = f"docker health inspect failed for {container}: {inspect.stderr.strip() or 'unknown error'}"
+                print(f"warning: {message}", file=sys.stderr)
+                notify("warning", message, source="healthcheck", beaker=name, container=container)
                 all_ready = False
                 waiting_for.append(f"{container} (starting)")
                 continue
-            health, status = inspect.stdout.strip().split("|", 1)
-            ready = health == "healthy" if health != "<no value>" else status == "running"
+            try:
+                health_state = json.loads(inspect.stdout.strip())
+            except json.JSONDecodeError as error:
+                message = f"could not parse docker health inspect for {container}: {error}"
+                print(f"warning: {message}", file=sys.stderr)
+                notify("warning", message, source="healthcheck", beaker=name, container=container)
+                all_ready = False
+                waiting_for.append(f"{container} (invalid health data)")
+                continue
+            if health_state is None:
+                status_inspect = run(
+                    ["docker", "inspect", "--format", "{{.State.Status}}", container],
+                    capture=True,
+                )
+                status = status_inspect.stdout.strip()
+                if status_inspect.returncode != 0 or not status:
+                    message = f"could not read docker state for {container}: {status_inspect.stderr.strip() or 'unknown error'}"
+                    print(f"warning: {message}", file=sys.stderr)
+                    notify("warning", message, source="healthcheck", beaker=name, container=container)
+                    all_ready = False
+                    waiting_for.append(f"{container} (unavailable)")
+                    continue
+                health = status
+                ready = status == "running"
+            elif isinstance(health_state, dict) and isinstance(health_state.get("Status"), str):
+                health = health_state["Status"]
+                ready = health == "healthy"
+            else:
+                message = f"unexpected docker health data for {container}: {health_state!r}"
+                print(f"warning: {message}", file=sys.stderr)
+                notify("warning", message, source="healthcheck", beaker=name, container=container)
+                all_ready = False
+                waiting_for.append(f"{container} (invalid health data)")
+                continue
             if not ready:
                 all_ready = False
-                waiting_for.append(f"{container} ({health if health != '<no value>' else status})")
+                waiting_for.append(f"{container} ({health})")
         if all_ready:
             print(f"\r{name}: ready" + " " * 20, flush=True)
             return True
@@ -45,10 +93,10 @@ def wait_healthy(beaker_path, name):
             flush=True,
         )
         frame += 1
-        time.sleep(HEALTH_POLL_INTERVAL)
+        time.sleep(poll_interval)
 
     print()
-    message = f"'{name}' did not report healthy within {HEALTH_TIMEOUT}s, continuing anyway"
+    message = f"'{name}' did not report healthy within {health_timeout}s, continuing anyway"
     print(f"warning: {message}")
     notify("warning", message, source="healthcheck", beaker=name)
     return False
@@ -82,9 +130,13 @@ def cmd_up(args):
         command = compose_command("up", "-d")
         if args.build:
             command.append("--build")
-        run(command, cwd=path)
+        env = None
+        if args.tolerance == "high":
+            env = os.environ.copy()
+            env["HEALTHCHECK_RETRIES"] = str(HIGH_TOLERANCE_HEALTHCHECK_RETRIES)
+        run(command, cwd=path, env=env)
         if not args.detach:
-            wait_healthy(path, name)
+            wait_healthy(path, name, tolerance=args.tolerance)
         if args.logs:
             run(compose_command("logs"), cwd=path)
 
@@ -96,6 +148,7 @@ def cmd_restart(args):
     order = [name for name in topological_order(beakers) if name in selected]
     retries = settings.get("restart_max_retries", 5)
 
+    tolerance = getattr(args, "tolerance", "low")
     for attempt in range(1, retries + 1):
         print(f"restart attempt {attempt}/{retries}...")
         notify("status", "restart attempt started", source="restart", attempt=attempt, total_attempts=retries)
@@ -103,7 +156,7 @@ def cmd_restart(args):
             beaker_down(name)
         healthy = True
         for name in order:
-            if not beaker_up(name):
+            if not beaker_up(name, tolerance=tolerance):
                 healthy = False
                 break
         if healthy:
@@ -135,7 +188,7 @@ def cmd_down(args):
         run(compose_command("down"), cwd=path)
 
 
-def beaker_up(name, build=False):
+def beaker_up(name, build=False, tolerance="low"):
     path = LAB_ROOT / name
     if not (path / "docker-compose.yml").exists():
         raise SystemExit(f"beaker '{name}' has no docker-compose.yml")
@@ -143,8 +196,12 @@ def beaker_up(name, build=False):
     command = compose_command("up", "-d")
     if build:
         command.append("--build")
-    run(command, cwd=path)
-    return wait_healthy(path, name)
+    env = None
+    if tolerance == "high":
+        env = os.environ.copy()
+        env["HEALTHCHECK_RETRIES"] = str(HIGH_TOLERANCE_HEALTHCHECK_RETRIES)
+    run(command, cwd=path, env=env)
+    return wait_healthy(path, name, tolerance=tolerance)
 
 
 def beaker_down(name):

@@ -17,7 +17,7 @@ services:
     labels:
       ofelia.enabled: "true"
       ofelia.job-exec.daily-restart.schedule: "0 4 * * *"
-      ofelia.job-exec.daily-restart.command: "python3 /lab/cli.py restart"
+      ofelia.job-exec.daily-restart.command: "python3 /lab/cli.py restart --tolerance=high"
 
 networks:
   lab-net:

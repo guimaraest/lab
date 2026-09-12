@@ -4,10 +4,11 @@ import re
 import shutil
 import sys
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 import yaml
+import psutil
 
 from lab_cli.constants import *
 from lab_cli.helpers import *
@@ -61,10 +62,8 @@ def host_temperature():
 
 def boot_time():
     try:
-        for line in Path("/proc/stat").read_text().splitlines():
-            if line.startswith("btime "):
-                return float(line.split()[1])
-    except (OSError, ValueError, IndexError):
+        return psutil.boot_time()
+    except (OSError, ValueError):
         return None
     return None
 
@@ -160,7 +159,8 @@ def container_status(container, stats):
     started_timestamp = None
     if started:
         try:
-            started_timestamp = datetime.fromisoformat(started.replace("Z", "+00:00")).timestamp()
+            parsed = datetime.fromisoformat(started.replace("Z", "+00:00"))
+            started_timestamp = parsed.replace(tzinfo=timezone.utc).timestamp()
         except ValueError:
             pass
     if state.get("Status") == "running" and container not in stats:
@@ -300,7 +300,10 @@ def cloudflare_status():
 def beaker_status(name, path, stats):
     containers = [container_status(container, stats) for container in container_names(path)]
     starts = [item["started_at"] for item in containers if item["started_at"]]
-    started_timestamp = min(datetime.fromisoformat(value.replace("Z", "+00:00")).timestamp() for value in starts) if starts else None
+    started_timestamp = min(
+        datetime.fromisoformat(value.replace("Z", "+00:00")).replace(tzinfo=timezone.utc).timestamp()
+        for value in starts
+    ) if starts else None
     folder_size = None
     output = command_text(["du", "-sb", str(path)], timeout=10)
     if output:
