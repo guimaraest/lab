@@ -10,7 +10,7 @@ beakers:
     aliases: [cloudflare, tunnel]
     autostart: true
     allow_restart: true
-    wait_seconds: 5
+    wait_seconds: 20
     depends_on: [nextcloud, ofelia]
   minecraft:
     aliases: []
@@ -21,4 +21,5 @@ beakers:
     aliases: []
     autostart: true
     allow_restart: false
+    wait_seconds: 5
     depends_on: []
