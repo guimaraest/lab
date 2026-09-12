@@ -4,6 +4,7 @@ import time
 
 from lab_cli.constants import *
 from lab_cli.helpers import *
+from lab_cli.notifications import notify
 
 
 def network_exists(name):
@@ -47,7 +48,9 @@ def wait_healthy(beaker_path, name):
         time.sleep(HEALTH_POLL_INTERVAL)
 
     print()
-    print(f"warning: '{name}' did not report healthy within {HEALTH_TIMEOUT}s, continuing anyway")
+    message = f"'{name}' did not report healthy within {HEALTH_TIMEOUT}s, continuing anyway"
+    print(f"warning: {message}")
+    notify("warning", message, source="healthcheck", beaker=name)
     return False
 
 
@@ -57,6 +60,7 @@ def cmd_init(args):
     else:
         run(["docker", "network", "create", NETWORK])
         print(f"created network '{NETWORK}'")
+        notify("status", f"created network '{NETWORK}'", source="lifecycle")
 
 
 def cmd_up(args):
@@ -94,6 +98,7 @@ def cmd_restart(args):
 
     for attempt in range(1, retries + 1):
         print(f"restart attempt {attempt}/{retries}...")
+        notify("status", "restart attempt started", source="restart", attempt=attempt, total_attempts=retries)
         for name in reversed(order):
             beaker_down(name)
         healthy = True
@@ -103,12 +108,15 @@ def cmd_restart(args):
                 break
         if healthy:
             print("scheduled restart completed successfully")
+            notify("status", "scheduled restart completed successfully", source="restart", attempt=attempt)
             return
 
-    print(
+    message = (
         "restart retries exhausted; bringing the entire server down "
         "because the stack could not be verified"
     )
+    print(message)
+    notify("error", message, source="restart", attempts=retries)
     # Shut down the full graph so no service remains in a partially verified state.
     cmd_down(argparse.Namespace(beakers=[]))
 

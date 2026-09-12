@@ -4,5 +4,6 @@ LAB_ROOT = Path(__file__).resolve().parent.parent
 CONFIG_PATH = Path(__file__).with_name("cli_config.yaml")
 NETWORK = "lab-net"
 COMPOSE_ENV_FILE = LAB_ROOT / ".env"
+NOTIFICATION_LOG = LAB_ROOT / "lab_notifications.log"
 HEALTH_TIMEOUT = 300
 HEALTH_POLL_INTERVAL = 2

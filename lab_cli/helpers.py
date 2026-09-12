@@ -5,6 +5,7 @@ import sys
 import yaml
 
 from lab_cli.constants import *
+from lab_cli.notifications import notify
 
 
 def run(cmd, cwd=None, capture=False, timeout=None):
@@ -50,6 +51,7 @@ def validate_config(settings):
     def warn(message):
         if message not in warned:
             print(f"warning: {message}", file=sys.stderr)
+            notify("warning", message, source="config")
             warned.add(message)
 
     for name, config in beakers.items():

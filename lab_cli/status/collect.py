@@ -11,6 +11,7 @@ import yaml
 
 from lab_cli.constants import *
 from lab_cli.helpers import *
+from lab_cli.notifications import notify
 
 
 def host_cpu_usage():
@@ -118,19 +119,25 @@ def fail2ban_report():
 def docker_inspect(container):
     result = command_result(["docker", "inspect", container], timeout=5)
     if result.returncode != 0:
-        print(f"warning: docker inspect {container} failed: {result.stderr.strip() or 'unknown error'}", file=sys.stderr)
+        message = f"docker inspect {container} failed: {result.stderr.strip() or 'unknown error'}"
+        print(f"warning: {message}", file=sys.stderr)
+        notify("warning", message, source="status", container=container)
         return {}
     try:
         return json.loads(result.stdout)[0]
     except (IndexError, json.JSONDecodeError) as error:
-        print(f"warning: could not parse docker inspect {container}: {error}", file=sys.stderr)
+        message = f"could not parse docker inspect {container}: {error}"
+        print(f"warning: {message}", file=sys.stderr)
+        notify("warning", message, source="status", container=container)
         return {}
 
 
 def docker_stats():
     result = command_result(["docker", "stats", "--no-stream", "--format", "{{json .}}"], timeout=10)
     if result.returncode != 0:
-        print(f"warning: docker stats failed: {result.stderr.strip() or 'unknown error'}", file=sys.stderr)
+        message = f"docker stats failed: {result.stderr.strip() or 'unknown error'}"
+        print(f"warning: {message}", file=sys.stderr)
+        notify("warning", message, source="status")
         return {}
     stats = {}
     for line in result.stdout.splitlines():
@@ -140,7 +147,9 @@ def docker_stats():
             if name:
                 stats[name] = item
         except json.JSONDecodeError as error:
-            print(f"warning: could not parse docker stats row: {error}", file=sys.stderr)
+            message = f"could not parse docker stats row: {error}"
+            print(f"warning: {message}", file=sys.stderr)
+            notify("warning", message, source="status")
     return stats
 
 
@@ -155,7 +164,9 @@ def container_status(container, stats):
         except ValueError:
             pass
     if state.get("Status") == "running" and container not in stats:
-        print(f"warning: docker stats returned no row for running container {container}", file=sys.stderr)
+        message = f"docker stats returned no row for running container {container}"
+        print(f"warning: {message}", file=sys.stderr)
+        notify("warning", message, source="status", container=container)
     return {"name": container, "status": state.get("Status", "unavailable"), "health": state.get("Health", {}).get("Status", "none"), "started_at": started, "uptime": format_duration(time.time() - started_timestamp) if started_timestamp else "unavailable", "restart_count": state.get("RestartCount", 0), "stats": stats.get(container, {})}
 
 
@@ -176,12 +187,16 @@ def beaker_domains(name):
 def compose_config(path):
     result = command_result(compose_command("config", "--format", "json"), cwd=path, timeout=10)
     if result.returncode != 0:
-        print(f"warning: docker compose config for {path.name} failed: {result.stderr.strip() or 'unknown error'}", file=sys.stderr)
+        message = f"docker compose config for {path.name} failed: {result.stderr.strip() or 'unknown error'}"
+        print(f"warning: {message}", file=sys.stderr)
+        notify("warning", message, source="status", beaker=path.name)
         return {}
     try:
         return json.loads(result.stdout)
     except json.JSONDecodeError as error:
-        print(f"warning: could not parse compose config for {path.name}: {error}", file=sys.stderr)
+        message = f"could not parse compose config for {path.name}: {error}"
+        print(f"warning: {message}", file=sys.stderr)
+        notify("warning", message, source="status", beaker=path.name)
         return {}
 
 

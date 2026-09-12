@@ -10,6 +10,7 @@ cloudflared/config.yml
 __pycache__/
 *.pyc
 *.pyo
+lab_notifications.log
 .venv/
 venv/
 *.egg-info/
