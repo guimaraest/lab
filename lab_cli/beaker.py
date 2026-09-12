@@ -1,6 +1,6 @@
 from lab_cli.constants import *
 from lab_cli.helpers import *
-from lab_cli.lifecycle import beaker_down, beaker_logs, beaker_up
+from lab_cli.lifecycle import beaker_down, beaker_logs, beaker_up, restart_beaker
 from lab_cli.status import get_beaker_status, print_beaker_status
 
 
@@ -26,6 +26,8 @@ def cmd_beaker(args):
         beaker_up(name)
     elif args.action == "down":
         beaker_down(name)
+    elif args.action == "restart":
+        restart_beaker(name)
     elif args.action == "logs":
         beaker_logs(name)
     elif args.action == "flag":

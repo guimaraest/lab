@@ -84,6 +84,17 @@ def cmd_up(args):
             run(compose_command("logs"), cwd=path)
 
 
+def cmd_restart(args):
+    beakers = load_config()
+
+    for name in topological_order(beakers):
+        config = beakers[name]
+        if not config.get("autostart", True):
+            print(f"skipping '{name}' (autostart disabled)")
+            continue
+        restart_beaker(name)
+
+
 def cmd_down(args):
     beakers = load_config()
     selected = selected_beakers(beakers, args.beakers)
@@ -116,6 +127,11 @@ def beaker_down(name):
         raise SystemExit(f"beaker '{name}' has no docker-compose.yml")
     print(f"stopping '{name}'...")
     run(compose_command("down"), cwd=path)
+
+
+def restart_beaker(name):
+    beaker_down(name)
+    beaker_up(name)
 
 
 def beaker_logs(name):
