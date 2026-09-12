@@ -1,4 +1,6 @@
 import argparse
+import fcntl
+from contextlib import contextmanager
 
 from lab_cli.constants import *
 from lab_cli.beaker import cmd_beaker
@@ -7,6 +9,17 @@ from lab_cli.helpers import load_config
 from lab_cli.list_command import cmd_list
 from lab_cli.notifications import print_recent_notifications
 from lab_cli.status import cmd_status
+
+
+@contextmanager
+def mutating_command_lock():
+    LOCK_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with LOCK_PATH.open("a") as lock_file:
+        try:
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            raise SystemExit("another lab command is already running - try again once it finishes")
+        yield
 
 
 def main():
@@ -86,7 +99,6 @@ def main():
     flag_parser.add_argument("flag_value", choices=["true", "false"])
 
     args = parser.parse_args()
-    load_config()
     commands = {
         "init": cmd_init,
         "list": cmd_list,
@@ -98,7 +110,17 @@ def main():
         "status": cmd_status,
         "beaker": cmd_beaker,
     }
-    commands[args.command](args)
+    mutating = args.command in {"init", "up", "run", "restart", "down"} or (
+        args.command == "beaker" and args.action in {"up", "down", "restart"}
+    )
+    command = commands[args.command]
+    if mutating:
+        with mutating_command_lock():
+            load_config()
+            command(args)
+    else:
+        load_config()
+        command(args)
 
 
 if __name__ == "__main__":

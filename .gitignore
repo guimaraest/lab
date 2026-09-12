@@ -11,6 +11,7 @@ __pycache__/
 *.pyc
 *.pyo
 lab_notifications.log
+/lab.lock
 .venv/
 venv/
 *.egg-info/
