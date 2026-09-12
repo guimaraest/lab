@@ -1,15 +1,51 @@
 import json
+import os
+import sys
+import urllib.error
+import urllib.request
 from datetime import datetime, timezone
 
-from lab_cli.constants import NOTIFICATION_LOG
+from lab_cli.constants import COMPOSE_ENV_FILE, NOTIFICATION_LOG
 
 
 class NotificationService:
-    """Collect important events in one place for a future phone notifier."""
+    """Collect notifications locally and forward warnings to Discord."""
 
-    def __init__(self, callback=None, log_path=NOTIFICATION_LOG):
+    def __init__(self, callback=None, log_path=NOTIFICATION_LOG, webhook_url=None):
         self.callback = callback
         self.log_path = log_path
+        self.webhook_url = webhook_url or self._load_webhook_url()
+
+    @staticmethod
+    def _load_webhook_url():
+        if os.environ.get("WARNING_DISCORD_WEBHOOK"):
+            return os.environ["WARNING_DISCORD_WEBHOOK"]
+        if not COMPOSE_ENV_FILE.exists():
+            return None
+        for line in COMPOSE_ENV_FILE.read_text().splitlines():
+            line = line.strip()
+            if line.startswith("WARNING_DISCORD_WEBHOOK="):
+                return line.split("=", 1)[1].strip().strip('"').strip("'") or None
+        return None
+
+    def _send_warning_to_discord(self, event):
+        if not self.webhook_url:
+            return
+        details = event.get("details", {})
+        details = {key: value for key, value in details.items() if not key.startswith("_")}
+        suffix = " " + " ".join(f"{key}={value}" for key, value in sorted(details.items())) if details else ""
+        content = f"WARNING: {event['message']}{suffix}"
+        request = urllib.request.Request(
+            self.webhook_url,
+            data=json.dumps({"content": content[:2000]}).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=5):
+                pass
+        except (OSError, urllib.error.URLError) as error:
+            print(f"warning: could not send notification to Discord: {error}", file=sys.stderr)
 
     def notify(self, level, message, **details):
         event = {
@@ -23,6 +59,9 @@ class NotificationService:
         self.log_path.parent.mkdir(parents=True, exist_ok=True)
         with self.log_path.open("a") as log_file:
             log_file.write(json.dumps(event, sort_keys=True) + "\n")
+
+        if level == "warning":
+            self._send_warning_to_discord(event)
 
         if self.callback is not None:
             self.callback(event)
