@@ -1,12 +1,12 @@
 import json
 from datetime import datetime, timezone
 
-from lab_cli.constants import NOTIFICATION_LOG
+from lab_cli.constants import WARNING_LOG
 from lab_cli.discord_webhooks import DiscordWebhook
 
 
-class NotificationService:
-    """Collect notifications locally and forward warnings to Discord."""
+class WarningService:
+    """Collect warnings locally and forward them to Discord."""
 
     _DISCORD_COLORS = {
         "WARNING": 0xF0A202,
@@ -15,7 +15,7 @@ class NotificationService:
         "INFO": 0x3A86FF,
     }
 
-    def __init__(self, callback=None, log_path=NOTIFICATION_LOG, webhook_url=None):
+    def __init__(self, callback=None, log_path=WARNING_LOG, webhook_url=None):
         self.callback = callback
         self.log_path = log_path
         self.webhook = DiscordWebhook(webhook_url) if webhook_url else DiscordWebhook.from_env("WARNING_DISCORD_WEBHOOK")
@@ -71,11 +71,11 @@ class NotificationService:
             self.callback(event)
 
 
-notification_service = NotificationService()
+warning_service = WarningService()
 
 
 def notify(level, message, **details):
-    notification_service.notify(level, message, **details)
+    warning_service.notify(level, message, **details)
 
 
 def notify_server_up():
@@ -92,10 +92,10 @@ def notify_once(key, level, message, **details):
 
 
 def recent_notifications(limit=50):
-    if limit == 0 or not NOTIFICATION_LOG.exists():
+    if limit == 0 or not WARNING_LOG.exists():
         return []
     events = []
-    lines = NOTIFICATION_LOG.read_text().splitlines()
+    lines = WARNING_LOG.read_text().splitlines()
     for line in lines if limit is None else lines[-limit:]:
         try:
             events.append(json.loads(line))

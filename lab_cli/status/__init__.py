@@ -1,7 +1,7 @@
 import json
 
 from lab_cli.constants import *
-from lab_cli.discord_webhooks import DiscordWebhook
+from lab_cli.logs import log_status
 from lab_cli.notifications import notify, notify_once, recent_notifications
 from lab_cli.status.collect import beaker_status, build_report, docker_stats
 from lab_cli.status.render import print_beaker_status, print_status, render_status
@@ -52,10 +52,8 @@ def cmd_status(args):
         print(json.dumps(report, indent=2))
     else:
         print_status(report)
-    if getattr(args, "discord", False):
-        webhook = DiscordWebhook.from_env("LOG_DISCORD_WEBHOOK")
-        if webhook:
-            webhook.send_status(render_status(report))
+    if getattr(args, "save_log", False):
+        log_status(render_status(report))
 
 
 def get_beaker_status(name):

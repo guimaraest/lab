@@ -10,7 +10,8 @@ cloudflared/config.yml
 __pycache__/
 *.pyc
 *.pyo
-lab_notifications.log
+lab_warnings.log
+lab_logs.log
 /lab.lock
 .venv/
 venv/

@@ -6,6 +6,7 @@ import time
 
 from lab_cli.constants import *
 from lab_cli.helpers import *
+from lab_cli.logs import log
 from lab_cli.notifications import notify
 
 
@@ -110,7 +111,7 @@ def cmd_init(args):
     else:
         run(["docker", "network", "create", NETWORK])
         print(f"created network '{NETWORK}'")
-        notify("status", f"created network '{NETWORK}'", source="lifecycle")
+        log("status", f"created network '{NETWORK}'", source="lifecycle")
 
 
 def cmd_up(args):
@@ -161,7 +162,7 @@ def cmd_restart(args):
     notify("warning", "server restart started", source="restart", tolerance=tolerance)
     for attempt in range(1, retries + 1):
         print(f"restart attempt {attempt}/{retries}...")
-        notify("status", "restart attempt started", source="restart", attempt=attempt, total_attempts=retries)
+        log("status", "restart attempt started", source="restart", attempt=attempt, total_attempts=retries)
         for name in reversed(order):
             beaker_down(name)
         healthy = True
@@ -171,7 +172,7 @@ def cmd_restart(args):
                 break
         if healthy:
             print("scheduled restart completed successfully")
-            notify("status", "scheduled restart completed successfully", source="restart", attempt=attempt)
+            log("status", "scheduled restart completed successfully", source="restart", attempt=attempt)
             return
 
     message = (
@@ -179,7 +180,7 @@ def cmd_restart(args):
         "because the stack could not be verified"
     )
     print(message)
-    notify("error", message, source="restart", attempts=retries)
+    log("error", message, source="restart", attempts=retries)
     # Shut down the full graph so no service remains in a partially verified state.
     cmd_down(argparse.Namespace(beakers=[]))
 
