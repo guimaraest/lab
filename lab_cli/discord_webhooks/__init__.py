@@ -48,7 +48,7 @@ class DiscordWebhook:
 
     def send_status(self, status_text):
         chunks = _chunks(status_text, 3900)
-        return all(self.send({"embeds": [{"title": "Lab status", "description": f"```\n{chunk}\n```"}]}) for chunk in chunks)
+        return all(self.send({"embeds": [{"title": "Lab status", "description": chunk}]}) for chunk in chunks)
 
 
 def _chunks(text, limit):

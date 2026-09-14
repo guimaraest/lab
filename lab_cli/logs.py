@@ -1,7 +1,7 @@
 import json
 from datetime import datetime, timezone
 
-from lab_cli.constants import LOG_FILE
+from lab_cli.constants import LOG_FILE, NETWORK
 from lab_cli.discord_webhooks import DiscordWebhook
 
 
@@ -72,11 +72,12 @@ class LogService:
         event = {
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "level": "status",
-            "message": status_text,
+            "message": "lab status report",
+            "details": {"report": status_text},
         }
         self._write(event)
         if self.webhook:
-            self.webhook.send_status(post_process_status_for_discord(status_text))
+            self.webhook.send_status(format_status_for_discord(status_text))
         if self.callback is not None:
             self.callback(event)
 
@@ -84,24 +85,42 @@ class LogService:
 log_service = LogService()
 
 
-def post_process_status_for_discord(status_text):
-    """Normalize the rendered report for compact Discord code blocks."""
-    lines = [line.rstrip() for line in status_text.replace("\r\n", "\n").split("\n")]
-    while lines and not lines[0]:
-        lines.pop(0)
-    while lines and not lines[-1]:
-        lines.pop()
-    processed = []
-    blank = False
-    for line in lines:
-        if not line:
-            if blank:
-                continue
-            blank = True
-        else:
-            blank = False
-        processed.append(line)
-    return "\n".join(processed)
+def format_status_for_discord(report):
+    """Format the structured status report using Discord Markdown."""
+    host = report.get("host", {})
+    memory = host.get("memory", {})
+    disk = host.get("disk", {})
+    cpu = host.get("cpu", {})
+    cloudflare = host.get("cloudflare", {})
+    lines = [
+        "**Lab Status**",
+        f"**Overall:** `{report.get('status', 'unknown')}`",
+        "",
+        "**Host**",
+        f"- OS: `{host.get('os_version', 'unavailable')}`",
+        f"- Uptime: `{host.get('uptime', 'unavailable')}`",
+        f"- CPU: `{cpu.get('usage_percent', 'unavailable')}%`",
+        f"- Memory: `{memory.get('used_human', 'unavailable')} / {memory.get('total_human', 'unavailable')}` ({memory.get('percent', 'unavailable')}%)",
+        f"- Disk: `{disk.get('used_human', 'unavailable')} / {disk.get('total_human', 'unavailable')}` ({disk.get('percent', 'unavailable')}%)",
+        f"- Temperature: `{host.get('temperature_celsius', 'unavailable')} C`",
+        "",
+        "**Network**",
+        f"- Cloudflare tunnel: `{cloudflare.get('state', 'unavailable')}`",
+        f"- Domains: {', '.join(f'`{domain}`' for domain in cloudflare.get('domains', [])) or '`none`'}",
+        f"- Docker network: `{NETWORK}`",
+        "",
+        "**Beakers**",
+    ]
+    for beaker in report.get("beakers", []):
+        lines.append(f"**{beaker.get('name', 'unknown')}**")
+        for container in beaker.get("containers", []):
+            lines.append(
+                f"- `{container.get('name', 'unknown')}`: "
+                f"**{container.get('status', 'unknown')}** / {container.get('health', 'unknown')} "
+                f"- uptime `{container.get('uptime', 'unavailable')}`, "
+                f"restarts `{container.get('restart_count', 'unavailable')}`"
+            )
+    return "\n".join(lines)
 
 
 def log(level, message, **details):

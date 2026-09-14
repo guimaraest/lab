@@ -4,7 +4,7 @@ from lab_cli.constants import *
 from lab_cli.logs import log_status
 from lab_cli.notifications import notify, notify_once, recent_notifications
 from lab_cli.status.collect import beaker_status, build_report, docker_stats
-from lab_cli.status.render import print_beaker_status, print_status, render_status
+from lab_cli.status.render import print_beaker_status, print_status
 
 
 def cmd_status(args):
@@ -53,7 +53,7 @@ def cmd_status(args):
     else:
         print_status(report)
     if getattr(args, "save_log", False):
-        log_status(render_status(report))
+        log_status(report)
 
 
 def get_beaker_status(name):
