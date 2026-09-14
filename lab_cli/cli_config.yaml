@@ -5,20 +5,15 @@ beakers:
     aliases: [nas]
     autostart: true
     allow_restart: true
-    depends_on: [ofelia]
+    depends_on: []
   cloudflared:
     aliases: [cloudflare, tunnel]
     autostart: true
     allow_restart: true
-    depends_on: [nextcloud, ofelia]
+    depends_on: [nextcloud]
   minecraft:
     aliases: []
     enabled: false
     autostart: false
-    allow_restart: false
-    depends_on: [ofelia]
-  ofelia:
-    aliases: []
-    autostart: true
     allow_restart: false
     depends_on: []
