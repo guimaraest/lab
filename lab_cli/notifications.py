@@ -101,6 +101,7 @@ def recent_notifications(limit=50):
             events.append(json.loads(line))
         except json.JSONDecodeError:
             continue
+    events.reverse()
     return events
 
 

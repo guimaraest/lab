@@ -76,12 +76,32 @@ class LogService:
         }
         self._write(event)
         if self.webhook:
-            self.webhook.send_status(status_text)
+            self.webhook.send_status(post_process_status_for_discord(status_text))
         if self.callback is not None:
             self.callback(event)
 
 
 log_service = LogService()
+
+
+def post_process_status_for_discord(status_text):
+    """Normalize the rendered report for compact Discord code blocks."""
+    lines = [line.rstrip() for line in status_text.replace("\r\n", "\n").split("\n")]
+    while lines and not lines[0]:
+        lines.pop(0)
+    while lines and not lines[-1]:
+        lines.pop()
+    processed = []
+    blank = False
+    for line in lines:
+        if not line:
+            if blank:
+                continue
+            blank = True
+        else:
+            blank = False
+        processed.append(line)
+    return "\n".join(processed)
 
 
 def log(level, message, **details):
