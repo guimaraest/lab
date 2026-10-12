@@ -4,6 +4,7 @@ LAB_ROOT = Path(__file__).resolve().parent.parent
 CONFIG_PATH = Path(__file__).with_name("cli_config.yaml")
 LOCK_PATH = LAB_ROOT / "lab.lock"
 NETWORK = "lab-net"
+TUNNEL_NETWORK = "tunnel-net"
 COMPOSE_ENV_FILE = LAB_ROOT / ".env"
 WARNING_LOG = LAB_ROOT / "lab_warnings.log"
 LOG_FILE = LAB_ROOT / "lab_logs.log"

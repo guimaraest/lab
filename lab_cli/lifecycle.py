@@ -14,6 +14,33 @@ def network_exists(name):
     return run(["docker", "network", "inspect", name], capture=True).returncode == 0
 
 
+def ensure_network(name, internal):
+    if network_exists(name):
+        inspect = run(
+            ["docker", "network", "inspect", "--format", "{{.Internal}}", name],
+            capture=True,
+        )
+        expected = str(internal).lower()
+        if inspect.returncode != 0 or inspect.stdout.strip().lower() != expected:
+            network_type = "internal" if internal else "egress"
+            raise SystemExit(
+                f"network '{name}' already exists with the wrong configuration; "
+                f"stop attached containers and remove it before running 'lab init' to create the {network_type} network"
+            )
+        print(f"network '{name}' already exists with expected configuration")
+        return
+
+    command = ["docker", "network", "create"]
+    if internal:
+        command.append("--internal")
+    command.append(name)
+    created = run(command, capture=True)
+    if created.returncode != 0:
+        raise SystemExit(f"could not create network '{name}': {created.stderr.strip()}")
+    print(f"created network '{name}'")
+    log("status", f"created network '{name}'", source="lifecycle")
+
+
 def wait_healthy(beaker_path, name):
     names = container_names(beaker_path)
     if not names:
@@ -106,12 +133,8 @@ def wait_healthy(beaker_path, name):
 
 
 def cmd_init(args):
-    if network_exists(NETWORK):
-        print(f"network '{NETWORK}' already exists")
-    else:
-        run(["docker", "network", "create", NETWORK])
-        print(f"created network '{NETWORK}'")
-        log("status", f"created network '{NETWORK}'", source="lifecycle")
+    ensure_network(NETWORK, internal=True)
+    ensure_network(TUNNEL_NETWORK, internal=False)
 
 
 def cmd_up(args):
