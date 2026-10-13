@@ -5,7 +5,7 @@ services:
     restart: unless-stopped
     command: --transaction-isolation=READ-COMMITTED --log-bin=binlog --binlog-format=ROW
     volumes:
-      - db_data:/var/lib/mysql
+      - ${DATA_PATH}/nextcloud/db:/var/lib/mysql
     env_file:
       - ../.env
     environment:
@@ -42,7 +42,7 @@ services:
       - db
       - redis
     volumes:
-      - nextcloud_data:/var/www/html
+      - ${DATA_PATH}/nextcloud/app:/var/www/html
     env_file:
       - ../.env
     environment:
@@ -60,10 +60,6 @@ services:
     networks:
       - lab-net
       - internal
-
-volumes:
-  db_data:
-  nextcloud_data:
 
 networks:
   lab-net:
