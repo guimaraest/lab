@@ -11,6 +11,7 @@ services:
       - "8080"
     volumes:
       - ..:/source
+      - /srv/data:/srv/data:ro
       - /var/run/docker.sock:/var/run/docker.sock
       - status_endpoint_cache:/var/cache/status_endpoint
     networks:
