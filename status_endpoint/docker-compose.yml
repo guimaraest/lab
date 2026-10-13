@@ -10,11 +10,16 @@ services:
     expose:
       - "8080"
     volumes:
-      - ..:/source:ro
+      - ..:/source
       - /var/run/docker.sock:/var/run/docker.sock
       - status_endpoint_cache:/var/cache/status_endpoint
     networks:
       - lab-net
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/status', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: ${HEALTHCHECK_RETRIES}
 
 volumes:
   status_endpoint_cache:

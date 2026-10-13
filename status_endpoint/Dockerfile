@@ -1,6 +1,6 @@
 FROM docker:cli
 
-RUN apk add --no-cache python3 py3-psutil py3-pyyaml py3-rich
+RUN apk add --no-cache python3 py3-flask py3-psutil py3-yaml py3-rich
 
 ENV PYTHONDONTWRITEBYTECODE=1
 

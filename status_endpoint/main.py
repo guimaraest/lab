@@ -2,13 +2,13 @@ import base64
 import fcntl
 import json
 import os
-import shutil
 import subprocess
 import sys
 import tempfile
 import time
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+
+from flask import Flask, Response, current_app
 
 
 PROJECT_ROOT = Path("/source")
@@ -32,13 +32,13 @@ class StatusProvider:
             now = time.time()
             last_attempt = state.get("last_attempt")
             if isinstance(last_attempt, (int, float)) and now - last_attempt < RATE_LIMIT_SECONDS:
-                return self._cached_response(state, RATE_LIMIT_SECONDS - (now - last_attempt), cached=True)
+                return self._response(state, RATE_LIMIT_SECONDS - (now - last_attempt), cached=True)
 
             state = {"last_attempt": now, "return_code": None, "stdout": "", "stderr": ""}
             self._write_state(state)
             state = self._execute_status(state)
             self._write_state(state)
-            return self._cached_response(state, RATE_LIMIT_SECONDS - (time.time() - now), cached=False)
+            return self._response(state, RATE_LIMIT_SECONDS - (time.time() - now), cached=False)
 
     def _read_state(self):
         try:
@@ -49,11 +49,10 @@ class StatusProvider:
             return {}
 
     def _write_state(self, state):
-        encoded = json.dumps(state)
         descriptor, temporary_path = tempfile.mkstemp(dir=self.state_dir, prefix="status-")
         try:
             with os.fdopen(descriptor, "w") as state_file:
-                state_file.write(encoded)
+                json.dump(state, state_file)
                 state_file.flush()
                 os.fsync(state_file.fileno())
             os.replace(temporary_path, self.cache_path)
@@ -63,30 +62,13 @@ class StatusProvider:
 
     def _execute_status(self, state):
         try:
-            with tempfile.TemporaryDirectory(prefix="lab-status-") as temporary_directory:
-                working_root = Path(temporary_directory) / "lab"
-                shutil.copytree(
-                    self.project_root,
-                    working_root,
-                    ignore=shutil.ignore_patterns(
-                        ".git",
-                        ".venv",
-                        "venv",
-                        "__pycache__",
-                        "*.pyc",
-                        "lab.lock",
-                        "lab_logs.log",
-                        "lab_warnings.log",
-                    ),
-                    symlinks=True,
-                )
-                result = subprocess.run(
-                    [sys.executable, str(working_root / "cli.py"), "status", "--json"],
-                    cwd=working_root,
-                    capture_output=True,
-                    timeout=COMMAND_TIMEOUT_SECONDS,
-                    check=False,
-                )
+            result = subprocess.run(
+                [sys.executable, "cli.py", "status", "--json"],
+                cwd=self.project_root,
+                capture_output=True,
+                timeout=COMMAND_TIMEOUT_SECONDS,
+                check=False,
+            )
             state["return_code"] = result.returncode
             state["stdout"] = base64.b64encode(result.stdout).decode("ascii")
             state["stderr"] = result.stderr.decode("utf-8", errors="replace")[-4096:]
@@ -104,58 +86,42 @@ class StatusProvider:
         return state
 
     @staticmethod
-    def _cached_response(state, remaining, cached):
+    def _response(state, remaining, cached):
         try:
-            return_code = state.get("return_code")
             raw_output = base64.b64decode(state.get("stdout", ""), validate=True)
         except (ValueError, TypeError):
-            return 503, b'{"error":"status result is unavailable"}', cached, max(1, int(remaining))
-        if return_code == 0:
-            try:
-                json.loads(raw_output)
-            except (UnicodeDecodeError, json.JSONDecodeError):
-                return 502, b'{"error":"lab status returned invalid JSON"}', cached, max(1, int(remaining))
-            return 200, raw_output, cached, max(0, int(remaining))
-        return 502, b'{"error":"lab status could not be collected"}', cached, max(1, int(remaining))
-
-
-class StatusHandler(BaseHTTPRequestHandler):
-    provider = StatusProvider()
-
-    def do_GET(self):
-        if self.path != "/status":
-            self.send_error(404)
-            return
+            return 503, b'{"error":"status result is unavailable"}', cached, remaining
+        if state.get("return_code") != 0:
+            return 502, b'{"error":"lab status could not be collected"}', cached, remaining
         try:
-            status, body, cached, retry_after = self.provider.get_status()
+            json.loads(raw_output)
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            return 502, b'{"error":"lab status returned invalid JSON"}', cached, remaining
+        return 200, raw_output, cached, remaining
+
+
+def create_app(provider=None):
+    app = Flask(__name__)
+    app.config["STATUS_PROVIDER"] = provider or StatusProvider()
+
+    @app.get("/status")
+    def status():
+        try:
+            code, body, cached, remaining = current_app.config["STATUS_PROVIDER"].get_status()
         except OSError as error:
-            self.send_error(500, f"status service unavailable: {error}")
-            return
+            return {"error": f"status service unavailable: {error}"}, 500
+        response = Response(body, status=code, content_type="application/json; charset=utf-8")
+        response.headers["Cache-Control"] = "no-store"
+        response.headers["X-Status-Cached"] = str(cached).lower()
+        if cached:
+            response.headers["Retry-After"] = str(max(1, int(remaining)))
+        return response
 
-        self.send_response(status)
-        self.send_header("Content-Type", "application/json; charset=utf-8")
-        self.send_header("Content-Length", str(len(body)))
-        self.send_header("Cache-Control", "no-store")
-        self.send_header("X-Status-Cached", str(cached).lower())
-        if retry_after:
-            self.send_header("Retry-After", str(retry_after))
-        self.end_headers()
-        self.wfile.write(body)
-
-    def do_POST(self):
-        self.send_error(405, "only GET /status is supported")
-
-    def log_message(self, format_string, *args):
-        print(f"{self.client_address[0]} - {format_string % args}", file=sys.stderr)
+    return app
 
 
-def main():
-    server = ThreadingHTTPServer(("0.0.0.0", 8080), StatusHandler)
-    try:
-        server.serve_forever()
-    finally:
-        server.server_close()
+app = create_app()
 
 
 if __name__ == "__main__":
-    main()
+    app.run(host="0.0.0.0", port=8080, threaded=True)
