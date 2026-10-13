@@ -10,7 +10,12 @@ beakers:
     aliases: [cloudflare, tunnel]
     autostart: true
     allow_restart: true
-    depends_on: [nextcloud]
+    depends_on: [nextcloud, status_endpoint]
+  status_endpoint:
+    aliases: []
+    autostart: true
+    allow_restart: true
+    depends_on: []
   minecraft:
     aliases: []
     enabled: false

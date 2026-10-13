@@ -1,0 +1,24 @@
+services:
+  status_endpoint:
+    build:
+      context: .
+    container_name: lab-status-endpoint
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp
+    expose:
+      - "8080"
+    volumes:
+      - ..:/source:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+      - status_endpoint_cache:/var/cache/status_endpoint
+    networks:
+      - lab-net
+
+volumes:
+  status_endpoint_cache:
+
+networks:
+  lab-net:
+    external: true
