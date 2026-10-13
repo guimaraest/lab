@@ -15,6 +15,78 @@ from lab_cli.helpers import *
 from lab_cli.notifications import notify, notify_once
 
 
+PSEUDO_FILESYSTEMS = {
+    "autofs",
+    "cgroup",
+    "cgroup2",
+    "configfs",
+    "debugfs",
+    "devpts",
+    "devtmpfs",
+    "fusectl",
+    "mqueue",
+    "overlay",
+    "proc",
+    "pstore",
+    "rpc_pipefs",
+    "securityfs",
+    "sysfs",
+    "tmpfs",
+    "tracefs",
+}
+
+
+def mounted_filesystems():
+    try:
+        partitions = psutil.disk_partitions(all=False)
+    except (OSError, PermissionError, ValueError, psutil.Error) as error:
+        return [], f"could not discover mounted filesystems: {error}"
+
+    # Keep one mount per source and type to avoid duplicate bind mounts.
+    partitions = sorted(
+        partitions,
+        key=lambda item: (
+            item.mountpoint != "/",
+            len(os.path.normpath(item.mountpoint)),
+            item.mountpoint,
+        ),
+    )
+    seen = set()
+    filesystems = []
+    for partition in partitions:
+        fstype = (partition.fstype or "unknown").lower()
+        mountpoint = os.path.abspath(partition.mountpoint)
+        if fstype in PSEUDO_FILESYSTEMS or fstype.startswith("fuse.") and "overlay" in fstype:
+            continue
+        identity = (partition.device, fstype)
+        if identity in seen:
+            continue
+        seen.add(identity)
+
+        filesystem = {
+            "device": partition.device or "unknown",
+            "mountpoint": mountpoint,
+            "fstype": fstype,
+            "total": None,
+            "used": None,
+            "available": None,
+            "percent": None,
+            "warning": None,
+        }
+        try:
+            usage = psutil.disk_usage(mountpoint)
+            filesystem.update(
+                total=usage.total,
+                used=usage.used,
+                available=usage.free,
+                percent=round(100 * usage.used / usage.total, 1) if usage.total else None,
+            )
+        except (OSError, PermissionError, ValueError, psutil.Error) as error:
+            filesystem["warning"] = f"could not read filesystem usage: {error}"
+        filesystems.append(filesystem)
+    return filesystems, None
+
+
 def host_cpu_usage():
     def read_times():
         fields = Path("/proc/stat").read_text().splitlines()[0].split()[1:]
@@ -330,9 +402,10 @@ def beaker_status(name, path, stats):
 def host_status():
     memory = host_memory()
     disk = shutil.disk_usage("/")
+    filesystems, filesystem_warning = mounted_filesystems()
     boot = boot_time()
     upgrade = last_os_upgrade()
-    return {"uptime": format_duration(time.time() - boot) if boot else "unavailable", "boot_time": boot, "last_restart": datetime.fromtimestamp(boot).isoformat(timespec="seconds") if boot else None, "os_version": os_version(), "cpu": {"usage_percent": host_cpu_usage(), "load": list(os.getloadavg())}, "memory": {"used": memory["used"], "used_human": human_bytes(memory["used"]), "total": memory["total"], "total_human": human_bytes(memory["total"]), "percent": memory["percent"]}, "temperature_celsius": host_temperature(), "disk": {"used": disk.used, "used_human": human_bytes(disk.used), "free": disk.free, "free_human": human_bytes(disk.free), "total": disk.total, "total_human": human_bytes(disk.total), "percent": round(100 * disk.used / disk.total, 1)}, "docker_disk": docker_disk_usage(), "last_os_upgrade": datetime.fromtimestamp(upgrade).isoformat(timespec="seconds") if upgrade else None, "fail2ban": fail2ban_report(), "cloudflare": cloudflare_status()}
+    return {"uptime": format_duration(time.time() - boot) if boot else "unavailable", "boot_time": boot, "last_restart": datetime.fromtimestamp(boot).isoformat(timespec="seconds") if boot else None, "os_version": os_version(), "cpu": {"usage_percent": host_cpu_usage(), "load": list(os.getloadavg())}, "memory": {"used": memory["used"], "used_human": human_bytes(memory["used"]), "total": memory["total"], "total_human": human_bytes(memory["total"]), "percent": memory["percent"]}, "temperature_celsius": host_temperature(), "disk": {"used": disk.used, "used_human": human_bytes(disk.used), "free": disk.free, "free_human": human_bytes(disk.free), "total": disk.total, "total_human": human_bytes(disk.total), "percent": round(100 * disk.used / disk.total, 1)}, "filesystems": filesystems, "filesystems_warning": filesystem_warning, "docker_disk": docker_disk_usage(), "last_os_upgrade": datetime.fromtimestamp(upgrade).isoformat(timespec="seconds") if upgrade else None, "fail2ban": fail2ban_report(), "cloudflare": cloudflare_status()}
 
 
 def overall_state(beakers):

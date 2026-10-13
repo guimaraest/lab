@@ -4,6 +4,7 @@ from io import StringIO
 from dataclasses import dataclass
 
 from rich.console import Console
+from rich.markup import escape
 from rich.panel import Panel
 from rich.table import Table
 
@@ -187,6 +188,26 @@ def print_status(report, console=None):
         metric = MetricBar(str(beaker["name"]).lower(), human_bytes(beaker_total) if beaker_total else "unavailable", beaker_total / used_disk if beaker_total and used_disk else None)
         storage_table.add_row(metric.label, metric.render(), metric.value.lower(), storage_ratio_label(beaker_total, used_disk).lower())
     console.print(Panel(storage_table, title=f"[bold {INDIGO}]storage[/bold {INDIGO}]", border_style=INDIGO_FILL, expand=False))
+
+    filesystem_table = Table(box=None, show_header=True, header_style=INDIGO_LIGHT, padding=(0, 1), expand=False)
+    for column in ("device/source", "mount point", "type", "total", "used", "available", "used %", "warning"):
+        filesystem_table.add_column(column, no_wrap=True, overflow="ellipsis")
+    for filesystem in host.get("filesystems", []):
+        filesystem_table.add_row(
+            escape(filesystem.get("device") or "unknown"),
+            escape(filesystem.get("mountpoint") or "unknown"),
+            escape(filesystem.get("fstype") or "unknown"),
+            human_bytes(filesystem.get("total")),
+            human_bytes(filesystem.get("used")),
+            human_bytes(filesystem.get("available")),
+            f"{filesystem['percent']:.1f}%" if filesystem.get("percent") is not None else "unavailable",
+            escape(filesystem.get("warning") or ""),
+        )
+    if not filesystem_table.row_count:
+        filesystem_table.add_row("unavailable", "unavailable", "unavailable", "unavailable", "unavailable", "unavailable", "unavailable", "")
+    console.print(Panel(filesystem_table, title=f"[bold {INDIGO}]mounted filesystems[/bold {INDIGO}]", border_style=INDIGO_FILL, expand=False))
+    if host.get("filesystems_warning"):
+        console.print(Panel(escape(host["filesystems_warning"]), title=f"[bold {INDIGO_LIGHT}]filesystem discovery warning[/bold {INDIGO_LIGHT}]", border_style=INDIGO_LIGHT, expand=False))
 
     table = Table(title=f"[bold {INDIGO}]container details[/bold {INDIGO}]", border_style=INDIGO_FILL, header_style=INDIGO_LIGHT, padding=(0, 1), expand=False)
     for column in ("beaker", "container", "status", "health", "uptime", "restarts", "cpu", "ram"):
