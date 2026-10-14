@@ -13,10 +13,18 @@ services:
       WIREGUARD_PRIVATE_KEY: ${WIREGUARD_PRIVATE_KEY}
       WIREGUARD_ADDRESSES: ${WIREGUARD_ADDRESSES}
       TZ: ${TZ}
+      FIREWALL_INPUT_PORTS: "8080"
     volumes:
       - ./gluetun:/gluetun
     networks:
       - lab-net
+      - ext-net
+    healthcheck:
+      test: ["CMD", "/gluetun-entrypoint", "healthcheck"]
+      interval: 30s
+      timeout: 10s
+      retries: ${HEALTHCHECK_RETRIES}
+      start_period: 60s
     security_opt:
       - no-new-privileges:true
 
@@ -42,4 +50,6 @@ services:
 
 networks:
   lab-net:
+    external: true
+  ext-net:
     external: true

@@ -15,10 +15,10 @@ services:
       retries: ${HEALTHCHECK_RETRIES}
     networks:
       - lab-net
-      - tunnel-net
+      - ext-net
 
 networks:
   lab-net:
     external: true
-  tunnel-net:
+  ext-net:
     external: true

@@ -133,8 +133,8 @@ def wait_healthy(beaker_path, name):
 
 
 def cmd_init(args):
-    ensure_network(NETWORK, internal=True)
-    ensure_network(TUNNEL_NETWORK, internal=False)
+    ensure_network(INTERNAL_NETWORK, internal=True)
+    ensure_network(EXTERNAL_NETWORK, internal=False)
 
 
 def cmd_up(args):
