@@ -42,9 +42,12 @@ def ensure_network(name, internal):
 
 
 def wait_healthy(beaker_path, name):
-    names = container_names(beaker_path)
+    names = container_names(beaker_path, actual_only=True)
     if not names:
-        return True
+        message = f"could not find any Compose containers for '{name}' to check"
+        print(f"warning: {message}", file=sys.stderr)
+        notify("warning", message, source="healthcheck", beaker=name)
+        return False
 
     started_at = time.monotonic()
     frame = 0

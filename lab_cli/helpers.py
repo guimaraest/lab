@@ -147,7 +147,27 @@ def topological_order(beakers, selected=None):
     return ordered
 
 
-def container_names(beaker_path):
+def container_names(beaker_path, actual_only=False):
+    result = command_result(
+        compose_command("ps", "--all", "--quiet"),
+        cwd=beaker_path,
+        timeout=10,
+    )
+    if result.returncode == 0:
+        container_ids = [line.strip() for line in result.stdout.splitlines() if line.strip()]
+        if container_ids:
+            inspected = command_result(
+                ["docker", "inspect", "--format", "{{.Name}}", *container_ids],
+                timeout=10,
+            )
+            if inspected.returncode == 0:
+                return [line.strip().lstrip("/") for line in inspected.stdout.splitlines() if line.strip()]
+            return []
+        if actual_only:
+            return []
+    elif actual_only:
+        return []
+
     result = command_result(compose_command("config", "--format", "json"), cwd=beaker_path, timeout=10)
     if result.returncode != 0:
         return []
