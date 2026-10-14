@@ -3,7 +3,7 @@ services:
     image: qmcgaw/gluetun:v3.41.3
     restart: unless-stopped
     init: true
-    container_name: youtube-gluetun
+    container_name: youtube-vpn
     cap_add:
       - NET_ADMIN
     devices:
@@ -33,7 +33,7 @@ services:
     image: ghcr.io/sjtrny/yt-dlp-web:sha-665f452
     restart: unless-stopped
     init: true
-    container_name: youtube-yt-dlp-web
+    container_name: youtube-app
     network_mode: "service:gluetun"
     depends_on:
       gluetun:
