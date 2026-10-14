@@ -1,8 +1,9 @@
 services:
   jellyfin-app:
-    image: jellyfin/jellyfin:latest
+    image: jellyfin/jellyfin:12.2
     restart: unless-stopped
     init: true
+    container_name: jellyfin-app
 
     environment:
       TZ: ${TZ}

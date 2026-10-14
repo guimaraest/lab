@@ -1,8 +1,9 @@
 services:
   gluetun:
-    image: qmcgaw/gluetun:latest
+    image: qmcgaw/gluetun:v3.41.3
     restart: unless-stopped
     init: true
+    container_name: youtube-gluetun
     cap_add:
       - NET_ADMIN
     devices:
@@ -29,9 +30,10 @@ services:
       - no-new-privileges:true
 
   yt-dlp-web:
-    image: ghcr.io/sjtrny/yt-dlp-web:latest
+    image: ghcr.io/sjtrny/yt-dlp-web:sha-665f452
     restart: unless-stopped
     init: true
+    container_name: youtube-yt-dlp-web
     network_mode: "service:gluetun"
     depends_on:
       gluetun:
