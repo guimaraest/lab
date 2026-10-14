@@ -7,9 +7,16 @@ services:
     environment:
       TZ: ${TZ}
 
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:8096/health"]
+      interval: 30s
+      timeout: 10s
+      retries: ${HEALTHCHECK_RETRIES}
+      start_period: 60s
+
     volumes:
-      - ./config
-      - ./cache
+      - ./config:/config
+      - ./cache:/cache
       - ${DATA_PATH}/media/music:/media/music:ro
       - ${DATA_PATH}/media/video:/media/video:ro
       - ${DATA_PATH}/media/movies:/media/movies/:ro
