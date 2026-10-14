@@ -1,5 +1,5 @@
 services:
-  jellyfin:
+  jellyfin-app:
     image: jellyfin/jellyfin:latest
     restart: unless-stopped
     init: true

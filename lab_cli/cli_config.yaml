@@ -10,8 +10,18 @@ beakers:
     aliases: [cloudflare, tunnel]
     autostart: true
     allow_restart: true
-    depends_on: [nextcloud, status_endpoint]
+    depends_on: [nextcloud, status_endpoint, youtube, jellyfin]
   status_endpoint:
+    aliases: []
+    autostart: true
+    allow_restart: true
+    depends_on: []
+  youtube:
+    aliases: []
+    autostart: true
+    allow_restart: true
+    depends_on: []
+  jellyfin:
     aliases: []
     autostart: true
     allow_restart: true
