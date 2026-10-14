@@ -1,0 +1,45 @@
+services:
+  gluetun:
+    image: qmcgaw/gluetun:latest
+    restart: unless-stopped
+    init: true
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    environment:
+      VPN_SERVICE_PROVIDER: mullvad
+      VPN_TYPE: wireguard
+      WIREGUARD_PRIVATE_KEY: ${WIREGUARD_PRIVATE_KEY}
+      WIREGUARD_ADDRESSES: ${WIREGUARD_ADDRESSES}
+      TZ: ${TZ}
+    volumes:
+      - ./gluetun:/gluetun
+    networks:
+      - lab-net
+    security_opt:
+      - no-new-privileges:true
+
+  yt-dlp-web:
+    image: ghcr.io/sjtrny/yt-dlp-web:latest
+    restart: unless-stopped
+    init: true
+    network_mode: "service:gluetun"
+    depends_on:
+      gluetun:
+        condition: service_healthy
+    environment:
+      YTDLP_PORT: "8080"
+      YTDLP_DOWNLOAD_DIR: /downloads
+      YTDLP_STATE_DIR: /state
+      YTDLP_DEFAULT_TIMEZONE: ${TZ}
+      YTDLP_MAX_CONCURRENT_DOWNLOADS: "2"
+    volumes:
+      - ${DATA_PATH}/media/incoming/youtube:/downloads
+      - ./state:/state
+    security_opt:
+      - no-new-privileges:true
+
+networks:
+  lab-net:
+    external: true

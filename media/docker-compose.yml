@@ -1,0 +1,26 @@
+services:
+  jellyfin:
+    image: jellyfin/jellyfin:latest
+    restart: unless-stopped
+    init: true
+
+    environment:
+      TZ: ${TZ}
+
+    volumes:
+      - ./config
+      - ./cache
+      - ${DATA_PATH}/media/music:/media/music:ro
+      - ${DATA_PATH}/media/video:/media/video:ro
+      - ${DATA_PATH}/media/movies:/media/movies/:ro
+      - ${DATA_PATH}/media/shows:/media/shows/:ro
+
+    networks:
+      - lab-net
+
+    security_opt:
+      - no-new-privileges:true
+
+networks:
+  lab-net:
+    external: true
