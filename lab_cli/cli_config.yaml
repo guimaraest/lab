@@ -16,13 +16,20 @@ beakers:
     autostart: true
     allow_restart: true
     depends_on: []
+  servarr:
+    aliases: []
+    autostart: false
+    allow_restart: true
+    depends_on: []
   youtube:
     aliases: []
+    enabled: false
     autostart: true
     allow_restart: true
     depends_on: []
   jellyfin:
     aliases: []
+    enabled: false
     autostart: true
     allow_restart: true
     depends_on: []
