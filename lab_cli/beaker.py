@@ -2,6 +2,7 @@ from lab_cli.constants import *
 from lab_cli.helpers import *
 from lab_cli.lifecycle import beaker_down, beaker_logs, beaker_up, restart_beaker
 from lab_cli.status import get_beaker_status, print_beaker_status
+from lab_cli.test_command import run_beaker_tests
 
 
 def set_autostart(name, value):
@@ -31,5 +32,7 @@ def cmd_beaker(args):
         restart_beaker(name)
     elif args.action == "logs":
         beaker_logs(name)
+    elif args.action == "test":
+        run_beaker_tests([name])
     elif args.action == "flag":
         set_autostart(name, args.flag_value)

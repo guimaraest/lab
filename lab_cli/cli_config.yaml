@@ -6,36 +6,44 @@ beakers:
     autostart: true
     allow_restart: true
     depends_on: []
+    tests: []
   cloudflared:
     aliases: [cloudflare, tunnel]
     autostart: true
     allow_restart: true
     depends_on: [nextcloud, status_endpoint, youtube, jellyfin]
+    tests: []
   status_endpoint:
     aliases: []
     autostart: true
     allow_restart: true
     depends_on: []
+    tests: []
   servarr:
     aliases: []
     autostart: false
     allow_restart: true
     depends_on: []
+    tests:
+      - gluetun-connectivity
   youtube:
     aliases: []
     enabled: false
     autostart: true
     allow_restart: true
     depends_on: []
+    tests: []
   jellyfin:
     aliases: []
     enabled: false
     autostart: true
     allow_restart: true
     depends_on: []
+    tests: []
   minecraft:
     aliases: []
     enabled: false
     autostart: false
     allow_restart: false
     depends_on: []
+    tests: []

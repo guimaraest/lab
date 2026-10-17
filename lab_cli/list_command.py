@@ -8,4 +8,8 @@ def cmd_list(args):
         dependencies = ", ".join(config.get("depends_on", [])) or "none"
         enabled = str(beaker_enabled(config)).lower()
         autostart = str(config.get("autostart", True)).lower()
-        print(f"{name}: enabled={enabled} autostart={autostart} aliases={aliases} depends_on={dependencies}")
+        tests = ", ".join(config["tests"]) or "none"
+        print(
+            f"{name}: enabled={enabled} autostart={autostart} aliases={aliases} "
+            f"depends_on={dependencies} tests={tests}"
+        )

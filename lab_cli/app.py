@@ -10,6 +10,7 @@ from lab_cli.list_command import cmd_list
 from lab_cli.logs import log, print_recent_logs
 from lab_cli.notifications import notify_server_up
 from lab_cli.status import cmd_status
+from lab_cli.test_command import cmd_test
 
 
 @contextmanager
@@ -80,6 +81,14 @@ def main():
         help="beaker names or aliases (defaults to all beakers)",
     )
 
+    test_parser = sub.add_parser("test", help="run configured beaker tests")
+    test_parser.add_argument(
+        "beakers",
+        nargs="*",
+        metavar="BEAKER_OR_ALIAS",
+        help="beaker names or aliases (defaults to beakers with tests)",
+    )
+
     status_parser = sub.add_parser("status", help="show detailed host and beaker status")
     status_parser.add_argument("--json", action="store_true", help="output structured JSON")
     status_parser.add_argument("--save-log", action="store_true", help="send the full report through the log system")
@@ -97,6 +106,7 @@ def main():
         description="restart this beaker using the default low healthcheck tolerance",
     )
     beaker_sub.add_parser("logs", help="show beaker logs")
+    beaker_sub.add_parser("test", help="run configured tests for the beaker")
     flag_parser = beaker_sub.add_parser("flag", help="change a beaker flag")
     flag_parser.add_argument("flag_name", choices=["autostart"])
     flag_parser.add_argument("flag_value", choices=["true", "false"])
@@ -110,6 +120,7 @@ def main():
         "run": cmd_up,
         "restart": cmd_restart,
         "down": cmd_down,
+        "test": cmd_test,
         "status": cmd_status,
         "server-up": lambda args: notify_server_up(),
         "beaker": cmd_beaker,

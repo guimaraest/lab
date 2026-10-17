@@ -55,6 +55,13 @@ def validate_config(settings):
             warned.add(message)
 
     for name, config in beakers.items():
+        if not isinstance(config, dict):
+            raise SystemExit(f"invalid config: beaker '{name}' must be a mapping")
+        tests = config.get("tests")
+        if not isinstance(tests, list) or any(not isinstance(test, str) for test in tests):
+            raise SystemExit(f"invalid config: beaker '{name}' must define 'tests' as a list of test names")
+        if len(tests) != len(set(tests)):
+            raise SystemExit(f"invalid config: beaker '{name}' has duplicate test names")
         for dependency in config.get("depends_on", []):
             if dependency not in beakers:
                 warn(f"beaker '{name}' depends on unknown beaker '{dependency}'")
