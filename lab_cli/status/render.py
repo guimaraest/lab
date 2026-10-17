@@ -165,7 +165,7 @@ def print_status(report, console=None):
         ("tunnel id", cloudflare.get("tunnel_id", "unavailable")),
         ("domains", ", ".join(cloudflare.get("domains", [])) or "none configured"),
         ("accesses", cloudflare.get("access_count", "unavailable")),
-        ("docker network", NETWORK),
+        ("docker network", INTERNAL_NETWORK),
         ("fail2ban", "\n".join(fail2ban_lines)),
     ], border=INDIGO_LIGHT))
 

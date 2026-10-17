@@ -107,7 +107,7 @@ def format_status_for_discord(report):
         "**Network**",
         f"- Cloudflare tunnel: `{cloudflare.get('state', 'unavailable')}`",
         f"- Domains: {', '.join(f'`{domain}`' for domain in cloudflare.get('domains', [])) or '`none`'}",
-        f"- Docker network: `{NETWORK}`",
+        f"- Docker network: `{INTERNAL_NETWORK}`",
         "",
         "**Beakers**",
     ]
