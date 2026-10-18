@@ -4,6 +4,7 @@ from contextlib import contextmanager
 
 from lab_cli.constants import *
 from lab_cli.beaker import cmd_beaker
+from lab_cli.data_tree import cmd_data_tree
 from lab_cli.lifecycle import cmd_down, cmd_init, cmd_restart, cmd_up
 from lab_cli.helpers import load_config
 from lab_cli.list_command import cmd_list
@@ -32,6 +33,15 @@ def main():
     sub.add_parser("list", help="list configured beakers")
     logs_parser = sub.add_parser("logs", help="show recent lab notifications")
     logs_parser.add_argument("--limit", type=int, default=50, help="number of recent notifications to show (default: 50)")
+    data_tree_parser = sub.add_parser("data-tree", help="show the data directory tree")
+    data_tree_parser.add_argument(
+        "-L",
+        "--level",
+        type=int,
+        default=4,
+        metavar="LEVEL",
+        help="maximum directory depth (default: 4)",
+    )
 
     def add_run_arguments(parser):
         parser.description = (
@@ -116,6 +126,7 @@ def main():
         "init": cmd_init,
         "list": cmd_list,
         "logs": lambda args: print_recent_logs(args.limit),
+        "data-tree": cmd_data_tree,
         "up": cmd_up,
         "run": cmd_up,
         "restart": cmd_restart,
