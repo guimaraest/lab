@@ -29,7 +29,7 @@ beakers:
       - gluetun-connectivity
   youtube:
     aliases: []
-    enabled: false
+    enabled: true
     autostart: false
     allow_restart: true
     depends_on: []

@@ -1,43 +1,9 @@
 services:
-  gluetun:
-    image: qmcgaw/gluetun:v3.41.3
-    restart: unless-stopped
-    init: true
-    container_name: youtube-vpn
-    cap_add:
-      - NET_ADMIN
-    devices:
-      - /dev/net/tun:/dev/net/tun
-    environment:
-      VPN_SERVICE_PROVIDER: mullvad
-      VPN_TYPE: wireguard
-      WIREGUARD_PRIVATE_KEY: ${WIREGUARD_PRIVATE_KEY}
-      WIREGUARD_ADDRESSES: ${WIREGUARD_ADDRESSES}
-      TZ: ${TZ}
-      FIREWALL_INPUT_PORTS: "8080"
-    volumes:
-      - ./gluetun:/gluetun
-    networks:
-      - lab-net
-      - ext-net
-    healthcheck:
-      test: ["CMD", "/gluetun-entrypoint", "healthcheck"]
-      interval: 30s
-      timeout: 10s
-      retries: ${HEALTHCHECK_RETRIES}
-      start_period: 60s
-    security_opt:
-      - no-new-privileges:true
-
   yt-dlp-web:
     image: ghcr.io/sjtrny/yt-dlp-web:sha-665f452
     restart: unless-stopped
     init: true
     container_name: youtube-app
-    network_mode: "service:gluetun"
-    depends_on:
-      gluetun:
-        condition: service_healthy
     environment:
       YTDLP_PORT: "8080"
       YTDLP_DOWNLOAD_DIR: /downloads
@@ -51,10 +17,13 @@ services:
       retries: ${HEALTHCHECK_RETRIES}
       start_period: 60s
     volumes:
-      - ${DATA_PATH}/media/incoming/youtube:/downloads
+      - ${DATA_PATH}/media/youtube:/downloads
       - ./state:/state
     security_opt:
       - no-new-privileges:true
+    networks:
+      - lab-net
+      - ext-net
 
 networks:
   lab-net:
