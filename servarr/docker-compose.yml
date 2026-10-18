@@ -138,6 +138,8 @@ services:
     image: lscr.io/linuxserver/sonarr:latest
     container_name: sonarr
     restart: unless-stopped
+    dns:
+      - 1.1.1.1
     environment:
       - PUID=${PUID}
       - PGID=${PGID}
@@ -156,6 +158,8 @@ services:
     image: lscr.io/linuxserver/radarr:latest
     container_name: radarr
     restart: unless-stopped
+    dns:
+      - 1.1.1.1
     environment:
       - PUID=${PUID}
       - PGID=${PGID}
@@ -174,6 +178,8 @@ services:
     container_name: lidarr
     image: lscr.io/linuxserver/lidarr:latest
     restart: unless-stopped
+    dns:
+      - 1.1.1.1
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - ./lidarr:/config
@@ -192,6 +198,8 @@ services:
     image: lscr.io/linuxserver/bazarr:latest
     container_name: bazarr
     restart: unless-stopped
+    dns:
+      - 1.1.1.1
     environment:
       - PUID=${PUID}
       - PGID=${PGID}
@@ -209,6 +217,8 @@ services:
   seerr:
     container_name: seerr
     image: ghcr.io/seerr-team/seerr:latest
+    dns:
+      - 1.1.1.1
     environment:
       - LOG_LEVEL=debug
       - PUID=${PUID}

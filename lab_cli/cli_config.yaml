@@ -21,6 +21,7 @@ beakers:
     tests: []
   servarr:
     aliases: []
+    enabled: false
     autostart: false
     allow_restart: true
     depends_on: []
@@ -29,7 +30,7 @@ beakers:
   youtube:
     aliases: []
     enabled: false
-    autostart: true
+    autostart: false
     allow_restart: true
     depends_on: []
     tests: []
