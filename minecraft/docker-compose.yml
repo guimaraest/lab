@@ -14,9 +14,25 @@ services:
       - ../.env
 
     environment:
+      VERSION: "26.3"
+
+      MODRINTH_PROJECTS: |
+        fabric-api
+        ferrite-core
+        lithium
+        krypton
+        geyser:beta
+        skinrestorer
+        essential-commands
+        simple-voice-chat:beta
+        datapack:players-drop-heads
+        mc2discord
+
+      MODRINTH_DOWNLOAD_DEPENDENCIES: "required"
+      MODRINTH_PROJECTS_DEFAULT_VERSION_TYPE: "release"
+
       EULA: "TRUE"
       TYPE: FABRIC
-      VERSION: "26.1.2"
 
       MEMORY: 4G
 
@@ -24,10 +40,12 @@ services:
       RCON_PASSWORD: ${RCON_PASSWORD}
 
       ONLINE_MODE: "true"
-      MOTD: "charlie kirk"
+      MOTD: |-
+        §6§lSERVER DOS CRIA
+        §7[ §f1.26.3 §7]
 
       DIFFICULTY: "normal"
-      MAX_PLAYERS: 10
+      MAX_PLAYERS: 20
 
       MODE: survival
       DEFAULT_GAMEMODE: survival
