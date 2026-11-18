@@ -116,6 +116,13 @@ def main():
         description="restart this beaker using the default low healthcheck tolerance",
     )
     beaker_sub.add_parser("logs", help="show beaker logs")
+    console_parser = beaker_sub.add_parser("console", help="attach to a service's console")
+    console_parser.add_argument(
+        "service",
+        nargs="?",
+        metavar="SERVICE",
+        help="Compose service to attach to (defaults to the configured main service)",
+    )
     beaker_sub.add_parser("test", help="run configured tests for the beaker")
     flag_parser = beaker_sub.add_parser("flag", help="change a beaker flag")
     flag_parser.add_argument("flag_name", choices=["autostart"])

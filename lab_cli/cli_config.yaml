@@ -3,24 +3,28 @@ restart_max_retries: 5
 beakers:
   nextcloud:
     aliases: [nas]
+    main_service: app
     autostart: true
     allow_restart: true
     depends_on: []
     tests: []
   cloudflared:
     aliases: [cloudflare, tunnel]
+    main_service: cloudflared
     autostart: true
     allow_restart: true
     depends_on: [nextcloud, status_endpoint, youtube, jellyfin]
     tests: []
   status_endpoint:
     aliases: []
+    main_service: status_endpoint
     autostart: true
     allow_restart: true
     depends_on: []
     tests: []
   servarr:
     aliases: []
+    main_service: sonarr
     enabled: false
     autostart: false
     allow_restart: true
@@ -29,6 +33,7 @@ beakers:
       - gluetun-connectivity
   youtube:
     aliases: []
+    main_service: yt-dlp-web
     enabled: true
     autostart: false
     allow_restart: true
@@ -36,6 +41,7 @@ beakers:
     tests: []
   jellyfin:
     aliases: []
+    main_service: jellyfin-app
     enabled: false
     autostart: true
     allow_restart: true
@@ -43,6 +49,7 @@ beakers:
     tests: []
   minecraft:
     aliases: []
+    main_service: minecraft
     autostart: true
     allow_restart: true
     depends_on: []

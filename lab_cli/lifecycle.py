@@ -272,4 +272,22 @@ def beaker_logs(name):
     path = LAB_ROOT / name
     if not (path / "docker-compose.yml").exists():
         raise SystemExit(f"beaker '{name}' has no docker-compose.yml")
-    run(compose_command("logs"), cwd=path)
+    run(compose_command("logs", "--follow"), cwd=path)
+
+
+def beaker_console(name, service=None):
+    config = load_config().get(name)
+    service = service or (config.get("main_service") if config else None)
+    if not isinstance(service, str) or not service.strip():
+        raise SystemExit(f"beaker '{name}' has no service specified or main_service configured")
+
+    path = LAB_ROOT / name
+    if not (path / "docker-compose.yml").exists():
+        raise SystemExit(f"beaker '{name}' has no docker-compose.yml")
+
+    result = run(
+        compose_command("attach", service),
+        cwd=path,
+    )
+    if result.returncode != 0:
+        raise SystemExit(result.returncode)
