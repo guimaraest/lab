@@ -43,7 +43,6 @@ beakers:
     tests: []
   minecraft:
     aliases: []
-    enabled: false
     autostart: false
     allow_restart: false
     depends_on: []
