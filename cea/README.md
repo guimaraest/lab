@@ -10,13 +10,13 @@ From this directory:
 docker compose up -d --build
 ```
 
-The service joins the existing external `lab-net` and listens on container port `4173`. It does not publish a host port. From another container on `lab-net` (including cloudflared), use:
+The service joins the existing external `lab-net`, listens on container port `4173`, and publishes host port `4173` on `0.0.0.0` for direct LAN access. From another container on `lab-net` (including cloudflared), use:
 
 ```text
 http://lab-cea:4173
 ```
 
-Configure your Cloudflare Tunnel ingress to route to that URL manually. Check the service with `docker compose ps` or `docker compose logs -f cea`.
+From your LAN, use `http://<server-lan-ip>:4173`. Configure your Cloudflare Tunnel ingress to route to `http://lab-cea:4173` manually if desired. Check the service with `docker compose ps` or `docker compose logs -f cea`.
 
 The image compiles the Python API from `../../rocket/ceav3/source`; the source tree is included in the Docker build context, and its local build artifacts are excluded. Node.js serves the interface and API; each calculation runs the CEA Python binding against its bundled thermodynamic database.
 
