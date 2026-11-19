@@ -1,9 +1,9 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ChangeEvent } from "react";
 
-type Mode = "equilibrium" | "rocket";
+type Mode = "equilibrium" | "rocket" | "deck";
 type Reactant = { species: string; moles: number };
 type Result = {
-  mode: Mode;
+  mode: "equilibrium" | "rocket";
   converged: boolean;
   equilibriumType?: "HP" | "TP";
   properties?: Record<string, number>;
@@ -40,6 +40,10 @@ function App() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [deckInput, setDeckInput] = useState("");
+  const [deckOutput, setDeckOutput] = useState("");
+  const [deckName, setDeckName] = useState("cea-case");
+  const [deckLoading, setDeckLoading] = useState(false);
 
   const sortedSpecies = useMemo(
     () =>
@@ -101,6 +105,62 @@ function App() {
     window.setTimeout(() => setCopied(false), 1800);
   }
 
+  async function loadDeckFile(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.currentTarget.files?.[0];
+    if (!file) return;
+    event.currentTarget.value = "";
+    if (file.size > 512 * 1024) {
+      setError("Input file must be 512 KiB or smaller.");
+      return;
+    }
+    try {
+      setDeckInput(await file.text());
+      setDeckName(file.name.replace(/\.[^.]+$/, "").replace(/[^a-zA-Z0-9._-]/g, "_") || "cea-case");
+      setDeckOutput("");
+      setError("");
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Could not read the input file.");
+    }
+  }
+
+  async function runDeck() {
+    setDeckLoading(true);
+    setDeckOutput("");
+    setError("");
+    try {
+      const response = await fetch("/api/deck", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ input: deckInput }),
+      });
+      const body = await response.json() as { output?: string; error?: string };
+      if (!response.ok) throw new Error(body.error ?? "CEA could not run this input deck.");
+      if (typeof body.output !== "string") throw new Error("CEA returned no output file.");
+      setDeckOutput(body.output);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "CEA could not run this input deck.");
+    } finally {
+      setDeckLoading(false);
+    }
+  }
+
+  function downloadText(filename: string, text: string, type: string) {
+    const url = URL.createObjectURL(new Blob([text], { type }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function downloadDeckInput() {
+    downloadText(`${deckName}.inp`, deckInput, "text/plain");
+  }
+
+  function downloadDeckOutput() {
+    downloadText(`${deckName}.out`, deckOutput, "text/plain");
+  }
+
   const temperatureLabel =
     mode === "rocket" ? "Chamber temperature" : equilibriumType === "HP" ? "Reactant temperature" : "Temperature";
 
@@ -122,8 +182,39 @@ function App() {
         <button className={mode === "rocket" ? "mode-tab active" : "mode-tab"} aria-pressed={mode === "rocket"} onClick={() => { setMode("rocket"); setTemperature(3500); setResult(null); }}>
           Rocket performance
         </button>
+        <button className={mode === "deck" ? "mode-tab active" : "mode-tab"} aria-pressed={mode === "deck"} onClick={() => { setMode("deck"); setError(""); }}>
+          Input / output files
+        </button>
       </nav>
 
+      {mode === "deck" ? (
+        <div className="workspace-grid deck-grid">
+          <section className="panel deck-panel">
+            <div className="panel-heading">
+              <h2>Input deck (.inp)</h2>
+              <div className="deck-actions">
+                <label className="file-button">Open file<input type="file" accept=".inp,.txt" onChange={loadDeckFile} /></label>
+                <button className="export-button" onClick={downloadDeckInput} disabled={!deckInput}>Save .inp</button>
+              </div>
+            </div>
+            <textarea className="deck-textarea" aria-label="CEA input deck" spellCheck={false} value={deckInput} onChange={(event) => setDeckInput(event.target.value)} placeholder="Paste a legacy CEA input deck here, or open a .inp file." />
+            <p className="deck-hint">Maximum input size: 512 KiB.</p>
+            <button className="run-button" onClick={runDeck} disabled={deckLoading || !deckInput.trim()}>
+              {deckLoading ? "Running CEA…" : "Run input deck"}
+            </button>
+          </section>
+
+          <section className="panel deck-panel">
+            <div className="panel-heading">
+              <h2>Output (.out)</h2>
+              {deckOutput && <button className="export-button" onClick={downloadDeckOutput}>Save .out</button>}
+            </div>
+            {error && <div className="error-banner" role="alert">{error}</div>}
+            {deckLoading && <p className="loading-state">Waiting for CEA output…</p>}
+            <textarea className="deck-textarea deck-output" aria-label="CEA output file" spellCheck={false} readOnly value={deckOutput} placeholder="CEA output will appear here after the deck runs." />
+          </section>
+        </div>
+      ) : (
       <div className="workspace-grid">
         <section className="panel setup-panel">
           <h2>Inputs</h2>
@@ -229,6 +320,7 @@ function App() {
           )}
         </section>
       </div>
+      )}
     </main>
   );
 }

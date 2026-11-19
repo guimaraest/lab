@@ -2,6 +2,8 @@
 
 A React + TypeScript interface for the NASA Chemical Equilibrium with Applications (CEA) Python API. It supports HP/TP equilibrium calculations and rocket nozzle performance calculations.
 
+The **Input / output files** tab also accepts legacy CEA `.inp` decks as pasted text or uploaded files, runs the CEA command-line solver, displays the `.out` text, and lets you save either file.
+
 ## Run in the lab network
 
 From this directory:

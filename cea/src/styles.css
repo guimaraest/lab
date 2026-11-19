@@ -463,6 +463,77 @@ a:focus-visible {
   margin: 8px 0 0;
 }
 
+.deck-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.deck-panel {
+  display: flex;
+  flex-direction: column;
+}
+
+.deck-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.file-button {
+  position: relative;
+  display: inline-flex;
+  min-height: 30px;
+  align-items: center;
+  padding: 5px 8px;
+  border: 1px solid var(--bg-light);
+  border-radius: 2px;
+  color: var(--text);
+  background: var(--bg);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.file-button input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+.deck-textarea {
+  width: 100%;
+  min-height: 380px;
+  resize: vertical;
+  padding: 8px;
+  border: 1px solid var(--bg-light);
+  border-radius: 2px;
+  outline: none;
+  color: var(--text);
+  background: var(--bg-dark);
+  font: 12px/1.45 monospace;
+  tab-size: 8;
+}
+
+.deck-textarea:focus {
+  border-color: var(--text-muted);
+}
+
+.deck-hint {
+  margin: 6px 0 0;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.deck-output {
+  flex: 1;
+}
+
+.export-button:disabled {
+  cursor: default;
+  opacity: .5;
+}
+
 @media (max-width: 760px) {
   .workspace-grid {
     grid-template-columns: 1fr;
