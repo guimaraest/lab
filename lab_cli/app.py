@@ -108,7 +108,8 @@ def main():
     beaker_parser.add_argument("name", metavar="NAME", help="beaker name or alias")
     beaker_sub = beaker_parser.add_subparsers(dest="action", required=True)
     beaker_sub.add_parser("status", help="show beaker status")
-    beaker_sub.add_parser("up", help="start the beaker")
+    beaker_up_parser = beaker_sub.add_parser("up", help="start the beaker")
+    beaker_up_parser.add_argument("--build", action="store_true", help="build the image before starting")
     beaker_sub.add_parser("down", help="stop the beaker")
     beaker_sub.add_parser(
         "restart",

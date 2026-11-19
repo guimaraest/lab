@@ -1,10 +1,20 @@
+from argparse import Namespace
 import subprocess
 import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from lab_cli import lifecycle
+from lab_cli import beaker, lifecycle
+
+
+class BeakerUpTest(unittest.TestCase):
+    @patch("lab_cli.beaker.beaker_up")
+    @patch("lab_cli.beaker.load_config", return_value={"cea": {"aliases": []}})
+    def test_build_flag_is_forwarded(self, load_config, beaker_up):
+        beaker.cmd_beaker(Namespace(name="cea", action="up", build=True))
+
+        beaker_up.assert_called_once_with("cea", build=True)
 
 
 class BeakerConsoleTest(unittest.TestCase):

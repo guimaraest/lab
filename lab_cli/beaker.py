@@ -25,7 +25,7 @@ def cmd_beaker(args):
     if args.action == "status":
         print_beaker_status(get_beaker_status(name))
     elif args.action == "up":
-        beaker_up(name)
+        beaker_up(name, build=args.build)
     elif args.action == "down":
         beaker_down(name)
     elif args.action == "restart":
