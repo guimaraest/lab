@@ -27,6 +27,7 @@ services:
         simple-voice-chat:beta
         datapack:players-drop-heads
         mc2discord
+        chunky
 
       MODRINTH_DOWNLOAD_DEPENDENCIES: "required"
       MODRINTH_PROJECTS_DEFAULT_VERSION_TYPE: "release"
@@ -51,6 +52,10 @@ services:
       DEFAULT_GAMEMODE: survival
 
       OPS: "Iron_ore_"
+
+      SEED: "-7067950856181840649"
+      VIEW_DISTANCE: "12"
+      SIMULATION_DISTANCE: "5"
 
     volumes:
       - ${DATA_PATH}/minecraft:/data
