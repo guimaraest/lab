@@ -1,0 +1,16 @@
+**
+!rocket
+!rocket/ceav3
+!rocket/ceav3/source
+!rocket/ceav3/source/**
+!lab
+!lab/cea
+!lab/cea/**
+
+rocket/ceav3/source/.git
+rocket/ceav3/source/build
+rocket/ceav3/source/venv
+rocket/ceav3/source/.venv
+rocket/ceav3/source/__pycache__
+lab/cea/node_modules
+lab/cea/dist

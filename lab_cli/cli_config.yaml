@@ -13,7 +13,15 @@ beakers:
     main_service: cloudflared
     autostart: true
     allow_restart: true
-    depends_on: [nextcloud, status_endpoint, youtube, jellyfin]
+    depends_on: [nextcloud, status_endpoint, youtube, jellyfin, cea]
+    tests: []
+  cea:
+    aliases: []
+    main_service: cea
+    enabled: true
+    autostart: true
+    allow_restart: true
+    depends_on: []
     tests: []
   status_endpoint:
     aliases: []
