@@ -1,28 +1,11 @@
 import { useMemo, useState } from "react";
-import {
-  Activity,
-  ArrowDownToLine,
-  Check,
-  ChevronDown,
-  CircleHelp,
-  FlaskConical,
-  Gauge,
-  GaugeCircle,
-  Info,
-  LoaderCircle,
-  Plus,
-  Rocket,
-  RotateCcw,
-  Sparkles,
-  Trash2,
-  TriangleAlert,
-} from "lucide-react";
 
 type Mode = "equilibrium" | "rocket";
 type Reactant = { species: string; moles: number };
 type Result = {
   mode: Mode;
   converged: boolean;
+  equilibriumType?: "HP" | "TP";
   properties?: Record<string, number>;
   massFractions?: Record<string, number>;
   stations?: Record<string, number[]>;
@@ -124,68 +107,51 @@ function App() {
   return (
     <main className="app-shell">
       <header className="topbar">
-        <a className="brand" href="/" aria-label="CEA Studio home">
-          <span className="brand-mark"><FlaskConical size={20} strokeWidth={2.2} /></span>
-          <span className="brand-name">cea<span>studio</span></span>
-        </a>
-        <div className="topbar-center"><span className="crumb">WORKSPACE</span><span className="crumb-slash">/</span><span>New calculation</span></div>
-        <div className="engine-pill"><span className="live-dot" /> NASA CEA <span className="engine-version">v3</span></div>
+        <strong>NASA CEA</strong>
+        <a href="https://nasa.github.io/cea/interfaces/python_api.html" target="_blank" rel="noreferrer">Python API reference</a>
       </header>
 
       <section className="page-heading">
-        <div>
-          <div className="eyebrow"><Sparkles size={13} /> CHEMICAL EQUILIBRIUM WITH APPLICATIONS</div>
-          <h1>Make the chemistry <span>work for you.</span></h1>
-          <p>Set up a case, run the NASA CEA engine, and explore the results.</p>
-        </div>
-        <a className="docs-link" href="https://nasa.github.io/cea/interfaces/python_api.html" target="_blank" rel="noreferrer">
-          <CircleHelp size={16} /> API reference <ArrowDownToLine className="external-icon" size={13} />
-        </a>
+        <h1>CEA calculator</h1>
       </section>
 
       <nav className="mode-tabs" aria-label="Calculation type">
-        <button className={mode === "equilibrium" ? "mode-tab active" : "mode-tab"} onClick={() => { setMode("equilibrium"); setTemperature(298.15); setResult(null); }}>
-          <Activity size={17} /> Equilibrium <span>Combustion &amp; mixtures</span>
+        <button className={mode === "equilibrium" ? "mode-tab active" : "mode-tab"} aria-pressed={mode === "equilibrium"} onClick={() => { setMode("equilibrium"); setTemperature(298.15); setResult(null); }}>
+          Equilibrium
         </button>
-        <button className={mode === "rocket" ? "mode-tab active" : "mode-tab"} onClick={() => { setMode("rocket"); setTemperature(3500); setResult(null); }}>
-          <Rocket size={17} /> Rocket performance <span>Nozzle flow &amp; Isp</span>
+        <button className={mode === "rocket" ? "mode-tab active" : "mode-tab"} aria-pressed={mode === "rocket"} onClick={() => { setMode("rocket"); setTemperature(3500); setResult(null); }}>
+          Rocket performance
         </button>
       </nav>
 
       <div className="workspace-grid">
         <section className="panel setup-panel">
-          <div className="panel-heading">
-            <div className="section-index">01</div>
-            <div><h2>Case setup</h2><p>Define reactants and initial conditions</p></div>
-            <button className="icon-button help-button" aria-label="About case setup" title="Species names must match NASA CEA's thermodynamic database."><Info size={16} /></button>
-          </div>
+          <h2>Inputs</h2>
 
           <div className="field-block">
-            <div className="field-label-row"><label>Reactants</label><span className="field-note">Species from CEA database</span></div>
+            <label>Reactants</label>
             <div className="reactant-list">
-              <div className="reactant-header"><span>SPECIES</span><span>AMOUNT · MOL</span><span /></div>
+              <div className="reactant-header"><span>Species</span><span>Moles</span><span /></div>
               {reactants.map((reactant, index) => (
                 <div className="reactant-row" key={index}>
                   <input aria-label={`Reactant ${index + 1} species`} value={reactant.species} onChange={(event) => setReactant(index, { species: event.target.value })} placeholder="e.g. H2" />
                   <input aria-label={`Reactant ${index + 1} amount in moles`} type="number" min="0.000001" step="any" value={reactant.moles} onChange={(event) => setReactant(index, { moles: Number(event.target.value) })} />
-                  <button className="remove-button" aria-label={`Remove ${reactant.species}`} disabled={reactants.length < 2} onClick={() => setReactants((current) => current.filter((_, position) => position !== index))}><Trash2 size={15} /></button>
+                  <button className="remove-button" aria-label={`Remove ${reactant.species}`} disabled={reactants.length < 2} onClick={() => setReactants((current) => current.filter((_, position) => position !== index))}>Remove</button>
                 </div>
               ))}
-              <button className="add-reactant" onClick={() => setReactants((current) => [...current, { species: "", moles: 1 }])}><Plus size={15} /> Add reactant</button>
+              <button className="add-reactant" onClick={() => setReactants((current) => [...current, { species: "", moles: 1 }])}>Add reactant</button>
             </div>
-            <div className="preset-row"><span>QUICK START</span>{Object.entries(presets).map(([name, values]) => <button key={name} onClick={() => setReactants(values.map((item) => ({ ...item })))}>{name}</button>)}</div>
+            <div className="preset-row"><span>Presets</span>{Object.entries(presets).map(([name, values]) => <button key={name} onClick={() => setReactants(values.map((item) => ({ ...item })))}>{name}</button>)}</div>
           </div>
-
-          <div className="divider" />
 
           {mode === "equilibrium" && (
             <div className="field-block">
-              <div className="field-label-row"><label htmlFor="equilibrium">Equilibrium constraint</label><span className="field-note">Choose the known state</span></div>
+              <label htmlFor="equilibrium">Equilibrium constraint</label>
               <div className="select-wrap">
                 <select id="equilibrium" value={equilibriumType} onChange={(event) => setEquilibriumType(event.target.value as "HP" | "TP")}>
                   <option value="HP">HP · Constant enthalpy &amp; pressure</option>
                   <option value="TP">TP · Constant temperature &amp; pressure</option>
-                </select><ChevronDown size={16} />
+                </select>
               </div>
               <p className="field-hint">{equilibriumType === "HP" ? "Adiabatic equilibrium: CEA finds the final temperature." : "Isothermal equilibrium: you set the temperature below."}</p>
             </div>
@@ -193,7 +159,7 @@ function App() {
 
           <div className="two-fields">
             <div className="field-block">
-              <label htmlFor="pressure">Chamber pressure</label>
+              <label htmlFor="pressure">{mode === "rocket" ? "Chamber pressure" : "Pressure"}</label>
               <div className="input-with-unit"><input id="pressure" type="number" min="0.000001" step="any" value={pressure} onChange={(event) => setPressure(Number(event.target.value))} /><span>bar</span></div>
             </div>
             <div className="field-block">
@@ -204,41 +170,34 @@ function App() {
 
           {mode === "rocket" && (
             <div className="field-block rocket-field">
-              <div className="field-label-row"><label htmlFor="exit-ratio">Exit pressure ratio</label><span className="field-note">Chamber / exit</span></div>
+              <label htmlFor="exit-ratio">Chamber / exit pressure ratio</label>
               <div className="input-with-unit"><input id="exit-ratio" type="number" min="1.01" step="any" value={exitPressureRatio} onChange={(event) => setExitPressureRatio(Number(event.target.value))} /><span>Pc / Pe</span></div>
             </div>
           )}
 
-          <div className="units-note"><Info size={14} /><span>CEA uses bar, kelvin, and molar reactant amounts. No hidden unit conversions.</span></div>
+          <p className="units-note">Units: pressure in bar, temperature in K, reactant amounts in mol.</p>
           <button className="run-button" onClick={runCalculation} disabled={loading || reactants.some((item) => !item.species.trim() || !Number.isFinite(item.moles) || item.moles <= 0) || !Number.isFinite(pressure) || pressure <= 0 || !Number.isFinite(temperature) || temperature <= 0}>
-            {loading ? <LoaderCircle className="spin" size={17} /> : mode === "rocket" ? <Rocket size={17} /> : <Activity size={17} />}
-            {loading ? "Running CEA…" : "Run calculation"} <span>↗</span>
+            {loading ? "Calculating…" : "Run calculation"}
           </button>
         </section>
 
         <section className="panel results-panel">
           <div className="panel-heading result-heading">
-            <div className="section-index">02</div>
-            <div><h2>Results</h2><p>{result ? "Calculation complete" : "Your output will appear here"}</p></div>
-            {result && <button className="export-button" onClick={downloadResult}><ArrowDownToLine size={15} /> Export JSON</button>}
+            <h2>Results</h2>
+            {result && <button className="export-button" onClick={downloadResult}>Download JSON</button>}
           </div>
 
-          {error && <div className="error-banner" role="alert"><TriangleAlert size={18} /><div><strong>Calculation failed</strong><span>{error}</span></div><button aria-label="Dismiss error" onClick={() => setError("")}>×</button></div>}
+          {error && <div className="error-banner" role="alert"><strong>Calculation failed:</strong> {error} <button aria-label="Dismiss error" onClick={() => setError("")}>Dismiss</button></div>}
 
           {!result && !loading && !error && (
-            <div className="empty-state">
-              <div className="empty-art"><div className="orbit orbit-one" /><div className="orbit orbit-two" /><span><GaugeCircle size={30} /></span></div>
-              <h3>Ready when you are</h3>
-              <p>Configure your reactants and conditions, then run a CEA calculation to see the thermodynamic output.</p>
-              <div className="empty-meta"><span><span className="tiny-dot" /> Native NASA engine</span><span>·</span><span>SI-aware outputs</span></div>
-            </div>
+            <p className="empty-state">No results. Enter inputs and run a calculation.</p>
           )}
 
-          {loading && <div className="loading-state"><LoaderCircle className="spin" size={25} /><span>Solving with NASA CEA…</span><small>Equilibrium calculations may take a few seconds.</small></div>}
+          {loading && <p className="loading-state">Calculating…</p>}
 
           {result && (
             <div className="result-content">
-              <div className={result.converged ? "convergence good" : "convergence warning"}><span className="convergence-dot" />{result.converged ? "Converged successfully" : "Solver did not converge"}<span className="result-mode">{result.mode === "rocket" ? "ROCKET" : "EQUILIBRIUM"}</span></div>
+              <p className="convergence">{result.converged ? "Converged" : "Not converged"} · {result.mode === "rocket" ? "Rocket performance" : `Equilibrium ${result.equilibriumType ?? equilibriumType}`}</p>
               {result.properties && (
                 <>
                   <div className="metric-grid">
@@ -247,7 +206,7 @@ function App() {
                     <Metric label="Density" value={number(result.properties.density, 4)} unit="kg/m³" />
                     <Metric label="Specific heat ratio" value={number(result.properties.gamma_s, 4)} unit="γ" />
                   </div>
-                  <div className="result-section-title"><span>THERMODYNAMIC PROPERTIES</span><span>CEA NATIVE UNITS</span></div>
+                  <div className="result-section-title"><span>Thermodynamic properties</span><span>CEA units</span></div>
                   <div className="property-list">
                     <Property label="Enthalpy" value={number(result.properties.enthalpy, 2)} unit="kJ/kg" />
                     <Property label="Entropy" value={number(result.properties.entropy, 3)} unit="kJ/(kg·K)" />
@@ -257,19 +216,19 @@ function App() {
                     <Property label="Thermal conductivity" value={number(result.properties.conductivity_eq, 4)} unit="μW/(cm·K)" />
                   </div>
                   {sortedSpecies.length > 0 && <div className="species-section">
-                    <div className="result-section-title"><span>PRODUCT SPECIES</span><span>MASS FRACTION</span></div>
-                    {sortedSpecies.map(([species, fraction]) => <div className="species-row" key={species}><span className="species-name">{species}</span><div className="species-bar-track"><span style={{ width: `${Math.max(1, fraction * 100)}%` }} /></div><span className="species-value">{number(fraction * 100, 2)}%</span></div>)}
+                    <div className="result-section-title"><span>Product species</span><span>Mass fraction</span></div>
+                    <div className="species-table">
+                      {sortedSpecies.map(([species, fraction]) => <div className="species-row" key={species}><span className="species-name">{species}</span><span className="species-value">{number(fraction * 100, 4)}%</span></div>)}
+                    </div>
                   </div>}
                 </>
               )}
               {result.stations && <RocketResults stations={result.stations} />}
-              <div className="result-actions"><span><Check size={14} /> Result is ready to use</span><button onClick={copyResult}>{copied ? <Check size={14} /> : <RotateCcw size={14} />}{copied ? "Copied" : "Copy result"}</button></div>
+              <div className="result-actions"><button onClick={copyResult}>{copied ? "Copied" : "Copy JSON"}</button></div>
             </div>
           )}
         </section>
       </div>
-
-      <footer className="page-footer"><span>CEA STUDIO <span className="footer-separator">·</span> POWERED BY NASA CEA V3</span><a href="https://nasa.github.io/cea/" target="_blank" rel="noreferrer">NASA CEA documentation <ArrowDownToLine size={12} /></a></footer>
     </main>
   );
 }
@@ -292,12 +251,14 @@ function RocketResults({ stations }: { stations: Record<string, number[]> }) {
       <Metric label="Characteristic velocity" value={number(first("cStar"), 1)} unit="m/s" />
       <Metric label="Thrust coefficient" value={number(last("thrustCoefficient"), 3)} unit="Cf" />
     </div>
-    <div className="result-section-title"><span>NOZZLE STATIONS</span><span>CEA OUTPUT</span></div>
+    <h3>Nozzle stations</h3>
     <div className="station-table">
-      <div className="station-row station-header"><span>Station</span><span>Pressure · bar</span><span>Temp · K</span><span>Mach</span><span>Area ratio</span></div>
-      {(stations.pressure ?? []).map((value, index) => <div className="station-row" key={index}><span>{index === 0 ? "Chamber" : index === (stations.pressure?.length ?? 0) - 1 ? "Exit" : `Point ${index + 1}`}</span><span>{number(value, 3)}</span><span>{number(stations.temperature?.[index], 1)}</span><span>{number(stations.mach?.[index], 3)}</span><span>{number(stations.areaRatio?.[index], 3)}</span></div>)}
+      <table>
+        <thead><tr><th>Station</th><th>Pressure (bar)</th><th>Temp (K)</th><th>Mach</th><th>Area ratio</th></tr></thead>
+        <tbody>{(stations.pressure ?? []).map((value, index) => <tr key={index}><td>{index === 0 ? "Chamber" : index === (stations.pressure?.length ?? 0) - 1 ? "Exit" : `Point ${index + 1}`}</td><td>{number(value, 3)}</td><td>{number(stations.temperature?.[index], 1)}</td><td>{number(stations.mach?.[index], 3)}</td><td>{number(stations.areaRatio?.[index], 3)}</td></tr>)}</tbody>
+      </table>
     </div>
-    <p className="rocket-note"><Gauge size={14} /> Specific impulse is reported in m/s by the Python API. Divide by standard gravity for seconds.</p>
+    <p className="rocket-note">Specific impulse is reported in m/s. Divide by standard gravity to get seconds.</p>
   </>;
 }
 

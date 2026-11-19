@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "concurrently -k \"tsx watch server.ts\" \"vite --host 0.0.0.0\"",
-    "build": "tsc -p tsconfig.server.json && vite build",
+    "build": "tsc -p tsconfig.server.json && tsc -p tsconfig.json && vite build",
     "start": "node dist/server/server.js"
   },
   "dependencies": {

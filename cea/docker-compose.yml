@@ -12,7 +12,6 @@ services:
       - "4173"
     networks:
       - lab-net
-      - lan-access
     healthcheck:
       test:
         - CMD
@@ -29,5 +28,3 @@ services:
 networks:
   lab-net:
     external: true
-  lan-access:
-    driver: bridge
