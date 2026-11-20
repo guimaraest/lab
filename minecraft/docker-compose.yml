@@ -61,12 +61,11 @@ services:
       - ${DATA_PATH}/minecraft:/data
 
   playit:
-    image: ghcr.io/playit-cloud/playit-agent:0.17
+    image: ghcr.io/playit-cloud/playit-agent:latest
     restart: unless-stopped
     network_mode: service:minecraft
     env_file:
       - ../.env
-
     depends_on:
       - minecraft
     healthcheck:
