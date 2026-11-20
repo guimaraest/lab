@@ -28,6 +28,7 @@ services:
         datapack:players-drop-heads
         mc2discord
         chunky
+        floodgate
 
       MODRINTH_DOWNLOAD_DEPENDENCIES: "required"
       MODRINTH_PROJECTS_DEFAULT_VERSION_TYPE: "release"
@@ -40,7 +41,7 @@ services:
       ENABLE_RCON: "true"
       RCON_PASSWORD: ${RCON_PASSWORD}
 
-      ONLINE_MODE: "true"
+      ONLINE_MODE: "false"
       MOTD: |-
         §6§lSERVER DOS CRIA
         §7[ §f1.26.3 §7]
