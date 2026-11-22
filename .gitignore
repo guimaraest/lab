@@ -12,6 +12,7 @@ __pycache__/
 *.pyo
 /cli/lab_warnings.log
 /cli/lab_logs.log
+/cli/power.log
 /cli/.lock
 .venv/
 venv/

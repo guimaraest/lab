@@ -10,6 +10,7 @@ from cli.helpers import load_config
 from cli.list_command import cmd_list
 from cli.logs import log, print_recent_logs
 from cli.notifications import notify_server_up
+from cli.power import cmd_power_report, cmd_record
 from cli.status import cmd_status
 from cli.test_command import cmd_test
 
@@ -102,6 +103,16 @@ def main():
     status_parser.add_argument("--save-log", action="store_true", help="send the full report through the log system")
     sub.add_parser("server-up", help="send the server-up warning")
 
+    record_parser = sub.add_parser("record", help="record a power usage or system event")
+    record_sub = record_parser.add_subparsers(dest="event", required=True)
+    for event in ("periodic", "shutdown", "poweron"):
+        record_sub.add_parser(event)
+
+    power_parser = sub.add_parser("power", help="power usage reports")
+    power_sub = power_parser.add_subparsers(dest="power_action", required=True)
+    power_report_parser = power_sub.add_parser("report", help="report measured power usage for a month")
+    power_report_parser.add_argument("--month", metavar="YYYY-MM", help="UTC month (defaults to the current month)")
+
     beaker_parser = sub.add_parser("beaker", help="run an action for one beaker")
     beaker_parser.add_argument("name", metavar="NAME", help="beaker name or alias")
     beaker_sub = beaker_parser.add_subparsers(dest="action", required=True)
@@ -141,6 +152,8 @@ def main():
         "test": cmd_test,
         "status": cmd_status,
         "server-up": lambda args: notify_server_up(),
+        "record": cmd_record,
+        "power": cmd_power_report,
         "beaker": cmd_beaker,
     }
     mutating = args.command in {"init", "up", "run", "restart", "down"} or (
@@ -150,13 +163,17 @@ def main():
     details = {"command": args.command}
     if args.command == "beaker":
         details.update({"action": args.action, "beaker": args.name})
-    log("info", f"{args.command} command started", **details)
+    if args.command != "record":
+        log("info", f"{args.command} command started", **details)
+    needs_beaker_config = args.command not in {"record", "power"}
     if mutating:
         with mutating_command_lock():
-            load_config()
+            if needs_beaker_config:
+                load_config()
             command(args)
     else:
-        load_config()
+        if needs_beaker_config:
+            load_config()
         command(args)
 
 
