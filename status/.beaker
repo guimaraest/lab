@@ -1,0 +1,6 @@
+aliases: []
+main_service: status
+tests: []
+environment:
+  - DATA_PATH
+  - HEALTHCHECK_RETRIES

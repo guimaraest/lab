@@ -1,0 +1,5 @@
+aliases: []
+main_service: cea
+tests: []
+environment:
+  - HEALTHCHECK_RETRIES

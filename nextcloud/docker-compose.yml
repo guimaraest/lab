@@ -5,19 +5,17 @@ services:
     restart: unless-stopped
     command: --transaction-isolation=READ-COMMITTED --log-bin=binlog --binlog-format=ROW
     volumes:
-      - ${DATA_PATH}/nextcloud/db:/var/lib/mysql
-    env_file:
-      - ../.env
+      - ${DATA_PATH:?Set DATA_PATH in the root .env}/nextcloud/db:/var/lib/mysql
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
-      MYSQL_DATABASE: ${MYSQL_DATABASE}
-      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD in the root .env}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Set MYSQL_PASSWORD in the root .env}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:?Set MYSQL_DATABASE in the root .env}
+      MYSQL_USER: ${MYSQL_USER:?Set MYSQL_USER in the root .env}
     healthcheck:
       test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
       interval: 10s
       timeout: 15s
-      retries: ${HEALTHCHECK_RETRIES}
+      retries: ${HEALTHCHECK_RETRIES:?Set HEALTHCHECK_RETRIES in the root .env}
       start_period: 30s
     networks:
       - internal
@@ -30,7 +28,7 @@ services:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
-      retries: ${HEALTHCHECK_RETRIES}
+      retries: ${HEALTHCHECK_RETRIES:?Set HEALTHCHECK_RETRIES in the root .env}
     networks:
       - internal
 
@@ -39,24 +37,24 @@ services:
     container_name: nextcloud-app
     restart: unless-stopped
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     volumes:
-      - ${DATA_PATH}/nextcloud/app:/var/www/html
-    env_file:
-      - ../.env
+      - ${DATA_PATH:?Set DATA_PATH in the root .env}/nextcloud/app:/var/www/html
     environment:
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
-      MYSQL_DATABASE: ${MYSQL_DATABASE}
-      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Set MYSQL_PASSWORD in the root .env}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:?Set MYSQL_DATABASE in the root .env}
+      MYSQL_USER: ${MYSQL_USER:?Set MYSQL_USER in the root .env}
       MYSQL_HOST: db
       REDIS_HOST: redis
-      NEXTCLOUD_TRUSTED_DOMAINS: ${NEXTCLOUD_TRUSTED_DOMAINS}
+      NEXTCLOUD_TRUSTED_DOMAINS: ${NEXTCLOUD_TRUSTED_DOMAINS:?Set NEXTCLOUD_TRUSTED_DOMAINS in the root .env}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost/status.php"]
       interval: 5s
       timeout: 3s
-      retries: ${HEALTHCHECK_RETRIES}
+      retries: ${HEALTHCHECK_RETRIES:?Set HEALTHCHECK_RETRIES in the root .env}
     networks:
       - lab-net
       - internal

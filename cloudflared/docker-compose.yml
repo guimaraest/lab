@@ -2,17 +2,17 @@ services:
   cloudflared:
     image: cloudflare/cloudflared:2026.8.3
     container_name: cloudflared
-    command: tunnel --no-autoupdate run --token ${CLOUDFLARED_TOKEN}
+    command: tunnel --no-autoupdate run
     volumes:
       - ./:/etc/cloudflared
-    env_file:
-      - ../.env
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARED_TOKEN:?Set CLOUDFLARED_TOKEN in the root .env}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "cloudflared", "tunnel", "--metrics", "0.0.0.0:20241", "ready"]
       interval: 15s
       timeout: 10s
-      retries: ${HEALTHCHECK_RETRIES}
+      retries: ${HEALTHCHECK_RETRIES:?Set HEALTHCHECK_RETRIES in the root .env}
     networks:
       - lab-net
       - ext-net

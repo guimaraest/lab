@@ -8,16 +8,16 @@ services:
       YTDLP_PORT: "8080"
       YTDLP_DOWNLOAD_DIR: /downloads
       YTDLP_STATE_DIR: /state
-      YTDLP_DEFAULT_TIMEZONE: ${TZ}
+      YTDLP_DEFAULT_TIMEZONE: ${TZ:?Set TZ in the root .env}
       YTDLP_MAX_CONCURRENT_DOWNLOADS: "2"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/api/v1/health', timeout=3)"]
       interval: 30s
       timeout: 5s
-      retries: ${HEALTHCHECK_RETRIES}
+      retries: ${HEALTHCHECK_RETRIES:?Set HEALTHCHECK_RETRIES in the root .env}
       start_period: 60s
     volumes:
-      - ${DATA_PATH}/media/youtube:/downloads
+      - ${DATA_PATH:?Set DATA_PATH in the root .env}/media/youtube:/downloads
       - ./state:/state
     security_opt:
       - no-new-privileges:true

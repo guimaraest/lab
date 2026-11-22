@@ -1,13 +1,5 @@
-# Compose file for the *arr stack. Configuration files are stored in the
-# directory you launch the compose file on. Change to bind mounts if needed.
-# All containers are ran with user and group ids of the main user and
-# group to avoid permissions issues of downloaded files, please refer
-# the read me file for more information.
-
-#############################################################################
-# NOTICE: We recently switched to using a .env file. PLEASE refer to the docs.
-# https://github.com/TechHutTV/homelab/tree/main/media#docker-compose-and-env
-#############################################################################
+# Compose file for the *arr stack. The lab CLI loads the repository .env and
+# passes only the variables declared below into each service.
 
 networks:
   servarrnetwork:
@@ -17,7 +9,6 @@ networks:
         - subnet: 172.39.0.0/24
 
 services:
-  # airvpn recommended (referral url: https://airvpn.org/?referred_by=673908)
   gluetun:
     image: qmcgaw/gluetun
     container_name: gluetun
@@ -27,7 +18,7 @@ services:
       - /dev/net/tun:/dev/net/tun # If running on an LXC see readme for more info.
     networks:
       servarrnetwork:
-        ipv4_address: ${SET_IP_GLUETUN}
+        ipv4_address: ${SET_IP_GLUETUN:?Set SET_IP_GLUETUN in the root .env}
     ports:
       - 8080:8080 # qbittorrent web interface
       - 6789:6789 # nzbget
@@ -35,14 +26,17 @@ services:
       - 8191:8191 # flaresolverr
     volumes:
       - ./gluetun:/gluetun
-    # Make a '.env' file in the same directory.
-    env_file:
-      - .env
+    environment:
+      VPN_SERVICE_PROVIDER: mullvad
+      VPN_TYPE: wireguard
+      WIREGUARD_PRIVATE_KEY: ${WIREGUARD_PRIVATE_KEY:?Set WIREGUARD_PRIVATE_KEY in the root .env}
+      WIREGUARD_ADDRESSES: ${WIREGUARD_ADDRESSES:?Set WIREGUARD_ADDRESSES in the root .env}
+      TZ: ${TZ:?Set TZ in the root .env}
     healthcheck:
-      test: ping -c 1 www.google.com || exit 1
+      test: ["CMD-SHELL", "ping -c 1 www.google.com || exit 1"]
       interval: 20s
       timeout: 10s
-      retries: 5
+      retries: ${HEALTHCHECK_RETRIES:?Set HEALTHCHECK_RETRIES in the root .env}
     restart: unless-stopped
 
   qbittorrent:
@@ -52,22 +46,22 @@ services:
     labels:
       - deunhealth.restart.on.unhealthy=true
     environment:
-      - PUID=${PUID}
-      - PGID=${PGID}
-      - TZ=${TZ}
+      - PUID=${PUID:?Set PUID in the root .env}
+      - PGID=${PGID:?Set PGID in the root .env}
+      - TZ=${TZ:?Set TZ in the root .env}
       - WEBUI_PORT=8080 # must match "qbittorrent web interface" port number in gluetun's service above
     volumes:
       - ./qbittorrent:/config
-      - ${DATA_PATH}/media:/data
+      - ${DATA_PATH:?Set DATA_PATH in the root .env}/media:/data
     depends_on:
       gluetun:
         condition: service_healthy
         restart: true
     network_mode: service:gluetun
     healthcheck:
-      test: ping -c 1 www.google.com || exit 1
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/ || exit 1"]
       interval: 60s
-      retries: 3
+      retries: ${HEALTHCHECK_RETRIES:?Set HEALTHCHECK_RETRIES in the root .env}
       start_period: 20s
       timeout: 10s
 
@@ -79,7 +73,7 @@ services:
     environment:
       - LOG_LEVEL=info
       - HEALTH_SERVER_ADDRESS=127.0.0.1:9999
-      - TZ=${TZ}
+      - TZ=${TZ:?Set TZ in the root .env}
     restart: always
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
@@ -88,13 +82,19 @@ services:
     image: lscr.io/linuxserver/nzbget:latest
     container_name: nzbget
     environment:
-      - PUID=${PUID}
-      - PGID=${PGID}
-      - TZ=${TZ}
+      - PUID=${PUID:?Set PUID in the root .env}
+      - PGID=${PGID:?Set PGID in the root .env}
+      - TZ=${TZ:?Set TZ in the root .env}
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:6789/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: ${HEALTHCHECK_RETRIES:?Set HEALTHCHECK_RETRIES in the root .env}
+      start_period: 30s
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - ./nzbget:/config
-      - ${DATA_PATH}/media:/data
+      - ${DATA_PATH:?Set DATA_PATH in the root .env}/media:/data
     depends_on:
       gluetun:
         condition: service_healthy
@@ -106,9 +106,15 @@ services:
     image: lscr.io/linuxserver/prowlarr:latest
     container_name: prowlarr
     environment:
-      - PUID=${PUID}
-      - PGID=${PGID}
-      - TZ=${TZ}
+      - PUID=${PUID:?Set PUID in the root .env}
+      - PGID=${PGID:?Set PGID in the root .env}
+      - TZ=${TZ:?Set TZ in the root .env}
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:9696/ping || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: ${HEALTHCHECK_RETRIES:?Set HEALTHCHECK_RETRIES in the root .env}
+      start_period: 30s
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - ./prowlarr:/config
@@ -123,10 +129,13 @@ services:
     image: ghcr.io/flaresolverr/flaresolverr:latest
     container_name: flaresolverr
     environment:
-      - LOG_LEVEL=${LOG_LEVEL:-info}
-      - LOG_HTML=${LOG_HTML:-false}
-      - CAPTCHA_SOLVER=${CAPTCHA_SOLVER:-none}
-      - TZ=${TZ}
+      - TZ=${TZ:?Set TZ in the root .env}
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8191/', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: ${HEALTHCHECK_RETRIES:?Set HEALTHCHECK_RETRIES in the root .env}
+      start_period: 30s
     depends_on:
       gluetun:
         condition: service_healthy
@@ -141,18 +150,24 @@ services:
     dns:
       - 1.1.1.1
     environment:
-      - PUID=${PUID}
-      - PGID=${PGID}
-      - TZ=${TZ}
+      - PUID=${PUID:?Set PUID in the root .env}
+      - PGID=${PGID:?Set PGID in the root .env}
+      - TZ=${TZ:?Set TZ in the root .env}
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8989/ping || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: ${HEALTHCHECK_RETRIES:?Set HEALTHCHECK_RETRIES in the root .env}
+      start_period: 30s
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - ./sonarr:/config
-      - ${DATA_PATH}/media:/data
+      - ${DATA_PATH:?Set DATA_PATH in the root .env}/media:/data
     ports:
       - 8989:8989
     networks:
       servarrnetwork:
-        ipv4_address: ${SET_IP_SONARR}
+        ipv4_address: ${SET_IP_SONARR:?Set SET_IP_SONARR in the root .env}
 
   radarr:
     image: lscr.io/linuxserver/radarr:latest
@@ -161,18 +176,24 @@ services:
     dns:
       - 1.1.1.1
     environment:
-      - PUID=${PUID}
-      - PGID=${PGID}
-      - TZ=${TZ}
+      - PUID=${PUID:?Set PUID in the root .env}
+      - PGID=${PGID:?Set PGID in the root .env}
+      - TZ=${TZ:?Set TZ in the root .env}
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:7878/ping || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: ${HEALTHCHECK_RETRIES:?Set HEALTHCHECK_RETRIES in the root .env}
+      start_period: 30s
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - ./radarr:/config
-      - ${DATA_PATH}/media:/data
+      - ${DATA_PATH:?Set DATA_PATH in the root .env}/media:/data
     ports:
       - 7878:7878
     networks:
       servarrnetwork:
-        ipv4_address: ${SET_IP_RADARR}
+        ipv4_address: ${SET_IP_RADARR:?Set SET_IP_RADARR in the root .env}
 
   lidarr:
     container_name: lidarr
@@ -183,16 +204,22 @@ services:
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - ./lidarr:/config
-      - ${DATA_PATH}/media:/data
+      - ${DATA_PATH:?Set DATA_PATH in the root .env}/media:/data
     environment:
-      - PUID=${PUID}
-      - PGID=${PGID}
-      - TZ=${TZ}
+      - PUID=${PUID:?Set PUID in the root .env}
+      - PGID=${PGID:?Set PGID in the root .env}
+      - TZ=${TZ:?Set TZ in the root .env}
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8686/ping || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: ${HEALTHCHECK_RETRIES:?Set HEALTHCHECK_RETRIES in the root .env}
+      start_period: 30s
     ports:
       - 8686:8686
     networks:
       servarrnetwork:
-        ipv4_address: ${SET_IP_LIDARR}
+        ipv4_address: ${SET_IP_LIDARR:?Set SET_IP_LIDARR in the root .env}
 
   bazarr:
     image: lscr.io/linuxserver/bazarr:latest
@@ -201,18 +228,24 @@ services:
     dns:
       - 1.1.1.1
     environment:
-      - PUID=${PUID}
-      - PGID=${PGID}
-      - TZ=${TZ}
+      - PUID=${PUID:?Set PUID in the root .env}
+      - PGID=${PGID:?Set PGID in the root .env}
+      - TZ=${TZ:?Set TZ in the root .env}
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - ./bazarr:/config
-      - ${DATA_PATH}/media:/data
+      - ${DATA_PATH:?Set DATA_PATH in the root .env}/media:/data
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:6767/api/system/status || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: ${HEALTHCHECK_RETRIES:?Set HEALTHCHECK_RETRIES in the root .env}
+      start_period: 30s
     ports:
       - 6767:6767
     networks:
       servarrnetwork:
-        ipv4_address: ${SET_IP_BAZARR}
+        ipv4_address: ${SET_IP_BAZARR:?Set SET_IP_BAZARR in the root .env}
 
   seerr:
     container_name: seerr
@@ -221,15 +254,15 @@ services:
       - 1.1.1.1
     environment:
       - LOG_LEVEL=debug
-      - PUID=${PUID}
-      - PGID=${PGID}
-      - TZ=${TZ}
+      - PUID=${PUID:?Set PUID in the root .env}
+      - PGID=${PGID:?Set PGID in the root .env}
+      - TZ=${TZ:?Set TZ in the root .env}
     healthcheck:
       test: wget --no-verbose --tries=1 --spider http://localhost:5055/api/v1/status || exit 1
       start_period: 20s
       timeout: 3s
       interval: 15s
-      retries: 3
+      retries: ${HEALTHCHECK_RETRIES:?Set HEALTHCHECK_RETRIES in the root .env}
     restart: unless-stopped
     volumes:
       - ./seerr:/app/config
@@ -237,7 +270,7 @@ services:
       - 5055:5055
     networks:
       servarrnetwork:
-        ipv4_address: ${SET_IP_SEERR}
+        ipv4_address: ${SET_IP_SEERR:?Set SET_IP_SEERR in the root .env}
 
   # jellystat-db:
   #   image: postgres:18.1
@@ -268,7 +301,7 @@ services:
   #     - POSTGRES_IP=jellystat-db
   #     - POSTGRES_PORT=5432
   #     - JWT_SECRET=${JELLYSTAT_JWT_SECRET}
-  #     - TZ=${TZ}
+  #     - TZ=${TZ:?Set TZ in the root .env}
   #   volumes:
   #     - ./jellystat/backup-data:/app/backend/backup-data
   #   ports:

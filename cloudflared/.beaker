@@ -1,0 +1,6 @@
+aliases: [cloudflare, tunnel]
+main_service: cloudflared
+tests: []
+environment:
+  - CLOUDFLARED_TOKEN
+  - HEALTHCHECK_RETRIES

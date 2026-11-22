@@ -1,0 +1,11 @@
+aliases: [nas]
+main_service: app
+tests: []
+environment:
+  - DATA_PATH
+  - HEALTHCHECK_RETRIES
+  - MYSQL_DATABASE
+  - MYSQL_PASSWORD
+  - MYSQL_ROOT_PASSWORD
+  - MYSQL_USER
+  - NEXTCLOUD_TRUSTED_DOMAINS

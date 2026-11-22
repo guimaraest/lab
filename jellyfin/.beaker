@@ -1,0 +1,7 @@
+aliases: []
+main_service: jellyfin-app
+tests: []
+environment:
+  - DATA_PATH
+  - HEALTHCHECK_RETRIES
+  - TZ

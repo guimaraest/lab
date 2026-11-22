@@ -1,7 +1,7 @@
 from pathlib import Path
 
 LAB_ROOT = Path(__file__).resolve().parent.parent
-CONFIG_PATH = LAB_ROOT / "beakers.yaml"
+CONFIG_PATH = LAB_ROOT / "config.yaml"
 CLI_ROOT = Path(__file__).resolve().parent
 LOCK_PATH = CLI_ROOT / ".lock"
 INTERNAL_NETWORK = "lab-net"

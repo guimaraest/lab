@@ -1,0 +1,7 @@
+aliases: []
+main_service: yt-dlp-web
+tests: []
+environment:
+  - DATA_PATH
+  - HEALTHCHECK_RETRIES
+  - TZ

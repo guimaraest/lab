@@ -1,0 +1,18 @@
+aliases: []
+main_service: sonarr
+tests:
+  - gluetun-connectivity
+environment:
+  - DATA_PATH
+  - HEALTHCHECK_RETRIES
+  - PGID
+  - PUID
+  - SET_IP_BAZARR
+  - SET_IP_GLUETUN
+  - SET_IP_LIDARR
+  - SET_IP_RADARR
+  - SET_IP_SEERR
+  - SET_IP_SONARR
+  - TZ
+  - WIREGUARD_ADDRESSES
+  - WIREGUARD_PRIVATE_KEY

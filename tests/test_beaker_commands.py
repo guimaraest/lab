@@ -38,8 +38,6 @@ class BeakerConsoleTest(unittest.TestCase):
             [
                 "docker",
                 "compose",
-                "--env-file",
-                str(lifecycle.COMPOSE_ENV_FILE),
                 "attach",
                 "minecraft",
             ],
@@ -91,8 +89,6 @@ class BeakerLogsTest(unittest.TestCase):
             [
                 "docker",
                 "compose",
-                "--env-file",
-                str(lifecycle.COMPOSE_ENV_FILE),
                 "logs",
                 "--follow",
             ],

@@ -1,4 +1,6 @@
 import json
+import os
+import re
 import subprocess
 import sys
 
@@ -9,6 +11,8 @@ from cli.notifications import notify
 
 
 def run(cmd, cwd=None, capture=False, timeout=None, env=None):
+    if cmd[:2] == ["docker", "compose"]:
+        env = compose_environment(env, cwd=cwd)
     try:
         return subprocess.run(cmd, cwd=cwd, capture_output=capture, text=True, timeout=timeout, env=env)
     except (OSError, subprocess.TimeoutExpired):
@@ -25,7 +29,7 @@ def command_text(cmd, cwd=None, timeout=5):
 
 
 def compose_command(*args):
-    return ["docker", "compose", "--env-file", str(COMPOSE_ENV_FILE), *args]
+    return ["docker", "compose", *args]
 
 
 def load_settings():
@@ -35,8 +39,49 @@ def load_settings():
     return settings
 
 
-def load_config():
-    return load_settings()["beakers"]
+def read_beaker_manifest(name):
+    manifest_path = LAB_ROOT / name / ".beaker"
+    if not manifest_path.is_file():
+        raise SystemExit(f"beaker '{name}' is missing {manifest_path.relative_to(LAB_ROOT)}")
+    try:
+        with manifest_path.open() as manifest_file:
+            manifest = yaml.safe_load(manifest_file) or {}
+    except yaml.YAMLError as error:
+        raise SystemExit(f"invalid beaker manifest '{manifest_path.relative_to(LAB_ROOT)}': {error}")
+    if not isinstance(manifest, dict):
+        raise SystemExit(f"invalid beaker manifest '{manifest_path.relative_to(LAB_ROOT)}': expected a mapping")
+    for field in ("aliases", "tests", "environment"):
+        values = manifest.get(field)
+        if not isinstance(values, list) or any(not isinstance(value, str) for value in values):
+            raise SystemExit(
+                f"invalid beaker manifest '{manifest_path.relative_to(LAB_ROOT)}': '{field}' must be a list of strings"
+            )
+    if any(not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", key) for key in manifest["environment"]):
+        raise SystemExit(
+            f"invalid beaker manifest '{manifest_path.relative_to(LAB_ROOT)}': invalid environment variable key"
+        )
+    for field in ("aliases", "tests"):
+        if len(manifest[field]) != len(set(manifest[field])):
+            raise SystemExit(f"invalid beaker manifest '{manifest_path.relative_to(LAB_ROOT)}': duplicate {field}")
+    main_service = manifest.get("main_service")
+    if not isinstance(main_service, str) or not main_service.strip():
+        raise SystemExit(
+            f"invalid beaker manifest '{manifest_path.relative_to(LAB_ROOT)}': 'main_service' must be a non-empty string"
+        )
+    if len(manifest["environment"]) != len(set(manifest["environment"])):
+        raise SystemExit(
+            f"invalid beaker manifest '{manifest_path.relative_to(LAB_ROOT)}': duplicate environment keys"
+        )
+    return manifest
+
+
+def load_config(settings=None):
+    settings = settings or load_settings()
+    beakers = settings["beakers"]
+    for name, config in beakers.items():
+        manifest = read_beaker_manifest(name)
+        config.update({field: manifest[field] for field in ("aliases", "main_service", "tests")})
+    return beakers
 
 
 def validate_config(settings):
@@ -57,11 +102,6 @@ def validate_config(settings):
     for name, config in beakers.items():
         if not isinstance(config, dict):
             raise SystemExit(f"invalid config: beaker '{name}' must be a mapping")
-        tests = config.get("tests")
-        if not isinstance(tests, list) or any(not isinstance(test, str) for test in tests):
-            raise SystemExit(f"invalid config: beaker '{name}' must define 'tests' as a list of test names")
-        if len(tests) != len(set(tests)):
-            raise SystemExit(f"invalid config: beaker '{name}' has duplicate test names")
         for dependency in config.get("depends_on", []):
             if dependency not in beakers:
                 warn(f"beaker '{name}' depends on unknown beaker '{dependency}'")
@@ -186,16 +226,68 @@ def container_names(beaker_path, actual_only=False):
 
 
 def parse_env_file():
-    values = {}
     if not COMPOSE_ENV_FILE.exists():
-        return values
+        return {}
+    raw_values = {}
     for line in COMPOSE_ENV_FILE.read_text().splitlines():
-        line = line.strip()
-        if not line or line.startswith("#") or "=" not in line:
+        match = re.match(r"^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*?)\s*$", line)
+        if not match:
             continue
-        key, value = line.split("=", 1)
-        values[key] = value.strip().strip('"').strip("'")
-    return values
+        key, value = match.groups()
+        if value.startswith(("'", '"')):
+            quote = value[0]
+            end = value.find(quote, 1)
+            value = value[1:end] if end >= 0 else value[1:]
+        else:
+            value = re.split(r"\s+#", value, maxsplit=1)[0].rstrip()
+        raw_values[key] = value
+
+    resolved = {}
+    resolving = set()
+
+    def resolve(key):
+        if key in resolved:
+            return resolved[key]
+        if key in resolving:
+            return ""
+        resolving.add(key)
+        value = raw_values.get(key, "")
+        def substitute(match):
+            name = match.group(1)
+            return os.environ[name] if name in os.environ else resolve(name)
+
+        value = re.sub(r"\$\{([A-Za-z_][A-Za-z0-9_]*)\}", substitute, value)
+        resolving.remove(key)
+        resolved[key] = value
+        return value
+
+    for key in raw_values:
+        resolve(key)
+    return resolved
+
+
+def compose_environment(base=None, cwd=None):
+    environment = dict(os.environ if base is None else base)
+    file_values = parse_env_file()
+    working_directory = Path(cwd or Path.cwd()).resolve()
+    if not working_directory.is_relative_to(LAB_ROOT):
+        raise SystemExit(f"cannot determine Compose environment outside the repository: '{working_directory}'")
+    while working_directory != LAB_ROOT.parent and working_directory != working_directory.parent:
+        if (working_directory / ".beaker").is_file():
+            name = working_directory.relative_to(LAB_ROOT).as_posix()
+            manifest = read_beaker_manifest(name)
+            keys = set(manifest["environment"])
+            for key in file_values:
+                if key not in keys:
+                    environment.pop(key, None)
+            for key in keys:
+                if key not in environment and key in file_values:
+                    environment[key] = file_values[key]
+            return environment
+        if working_directory == LAB_ROOT:
+            break
+        working_directory = working_directory.parent
+    raise SystemExit(f"cannot determine Compose environment: no .beaker manifest found from '{cwd or Path.cwd()}'")
 
 
 def format_duration(seconds):

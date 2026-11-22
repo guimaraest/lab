@@ -10,8 +10,8 @@ services:
     expose:
       - "8080"
     volumes:
-      - ..:/source
-      - ${DATA_PATH}:${DATA_PATH}:ro
+      - ..:/source:ro
+      - ${DATA_PATH:?Set DATA_PATH in the root .env}:${DATA_PATH:?Set DATA_PATH in the root .env}:ro
       - /var/run/docker.sock:/var/run/docker.sock
       - status_cache:/var/cache/status
     networks:
@@ -20,7 +20,7 @@ services:
       test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/status', timeout=3)"]
       interval: 30s
       timeout: 5s
-      retries: ${HEALTHCHECK_RETRIES}
+      retries: ${HEALTHCHECK_RETRIES:?Set HEALTHCHECK_RETRIES in the root .env}
 
 volumes:
   status_cache:

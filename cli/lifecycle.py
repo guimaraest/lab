@@ -175,7 +175,7 @@ def cmd_up(args):
 
 def cmd_restart(args):
     settings = load_settings()
-    beakers = settings["beakers"]
+    beakers = load_config(settings)
     selected = [
         name
         for name, config in beakers.items()

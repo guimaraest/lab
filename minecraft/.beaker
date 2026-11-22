@@ -1,0 +1,9 @@
+aliases: []
+main_service: minecraft
+tests: []
+environment:
+  - DATA_PATH
+  - HEALTHCHECK_RETRIES
+  - RCON_PASSWORD
+  - SECRET_KEY
+  - TZ
