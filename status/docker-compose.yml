@@ -1,8 +1,8 @@
 services:
-  status_endpoint:
+  status:
     build:
       context: .
-    container_name: lab-status-endpoint
+    container_name: lab-status
     restart: unless-stopped
     read_only: true
     tmpfs:
@@ -13,7 +13,7 @@ services:
       - ..:/source
       - ${DATA_PATH}:${DATA_PATH}:ro
       - /var/run/docker.sock:/var/run/docker.sock
-      - status_endpoint_cache:/var/cache/status_endpoint
+      - status_cache:/var/cache/status
     networks:
       - lab-net
     healthcheck:
@@ -23,7 +23,7 @@ services:
       retries: ${HEALTHCHECK_RETRIES}
 
 volumes:
-  status_endpoint_cache:
+  status_cache:
 
 networks:
   lab-net:

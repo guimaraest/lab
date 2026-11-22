@@ -1,8 +1,8 @@
-from lab_cli.constants import *
-from lab_cli.helpers import *
-from lab_cli.lifecycle import beaker_console, beaker_down, beaker_logs, beaker_up, restart_beaker
-from lab_cli.status import get_beaker_status, print_beaker_status
-from lab_cli.test_command import run_beaker_tests
+from cli.constants import *
+from cli.helpers import *
+from cli.lifecycle import beaker_console, beaker_down, beaker_logs, beaker_up, restart_beaker
+from cli.status import get_beaker_status, print_beaker_status
+from cli.test_command import run_beaker_tests
 
 
 def set_autostart(name, value):
@@ -25,14 +25,26 @@ def cmd_beaker(args):
     if args.action == "status":
         print_beaker_status(get_beaker_status(name))
     elif args.action == "up":
-        beaker_up(name, build=args.build)
+        beaker_up(
+            name,
+            build=getattr(args, "build", False),
+            tolerance=getattr(args, "tolerance", "low"),
+            detach=getattr(args, "detach", False),
+            logs=getattr(args, "logs", False),
+        )
     elif args.action == "down":
         beaker_down(name)
     elif args.action == "restart":
-        restart_beaker(name)
-    elif args.action == "logs":
+        restart_beaker(
+            name,
+            build=getattr(args, "build", False),
+            tolerance=getattr(args, "tolerance", "low"),
+            detach=getattr(args, "detach", False),
+            logs=getattr(args, "logs", False),
+        )
+    elif args.action == "listen":
         beaker_logs(name)
-    elif args.action == "console":
+    elif args.action == "attach":
         beaker_console(name, args.service)
     elif args.action == "test":
         run_beaker_tests([name])

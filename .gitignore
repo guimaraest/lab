@@ -10,9 +10,9 @@ cloudflared/config.yml
 __pycache__/
 *.pyc
 *.pyo
-lab_warnings.log
-lab_logs.log
-/lab.lock
+/cli/lab_warnings.log
+/cli/lab_logs.log
+/cli/.lock
 .venv/
 venv/
 *.egg-info/

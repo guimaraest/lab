@@ -4,7 +4,7 @@ import sys
 import urllib.error
 import urllib.request
 
-from lab_cli.constants import COMPOSE_ENV_FILE
+from cli.constants import COMPOSE_ENV_FILE
 
 
 class DiscordWebhook:

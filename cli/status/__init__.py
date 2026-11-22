@@ -1,10 +1,10 @@
 import json
 
-from lab_cli.constants import *
-from lab_cli.logs import log_status
-from lab_cli.notifications import notify, notify_once, recent_notifications
-from lab_cli.status.collect import beaker_status, build_report, docker_stats
-from lab_cli.status.render import print_beaker_status, print_status
+from cli.constants import *
+from cli.logs import log_status
+from cli.notifications import notify, notify_once, recent_notifications
+from cli.status.collect import beaker_status, build_report, docker_stats
+from cli.status.render import print_beaker_status, print_status
 
 
 def cmd_status(args):

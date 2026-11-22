@@ -4,10 +4,10 @@ import os
 import sys
 import time
 
-from lab_cli.constants import *
-from lab_cli.helpers import *
-from lab_cli.logs import log
-from lab_cli.notifications import notify
+from cli.constants import *
+from cli.helpers import *
+from cli.logs import log
+from cli.notifications import notify
 
 
 def network_exists(name):
@@ -193,7 +193,13 @@ def cmd_restart(args):
             beaker_down(name)
         healthy = True
         for name in order:
-            if not beaker_up(name, tolerance=tolerance):
+            if not beaker_up(
+                name,
+                build=getattr(args, "build", False),
+                tolerance=tolerance,
+                detach=getattr(args, "detach", False),
+                logs=getattr(args, "logs", False),
+            ):
                 healthy = False
                 break
         if healthy:
@@ -231,7 +237,7 @@ def cmd_down(args):
         run(compose_command("down"), cwd=path)
 
 
-def beaker_up(name, build=False, tolerance="low"):
+def beaker_up(name, build=False, tolerance="low", detach=False, logs=False):
     config = load_config().get(name)
     if config is not None and not beaker_enabled(config):
         raise SystemExit(f"beaker '{name}' is disabled")
@@ -247,7 +253,10 @@ def beaker_up(name, build=False, tolerance="low"):
         env = os.environ.copy()
         env["HEALTHCHECK_RETRIES"] = str(HIGH_TOLERANCE_HEALTHCHECK_RETRIES)
     run(command, cwd=path, env=env)
-    return wait_healthy(path, name)
+    healthy = True if detach else wait_healthy(path, name)
+    if logs:
+        run(compose_command("logs"), cwd=path)
+    return healthy
 
 
 def beaker_down(name):
@@ -259,13 +268,13 @@ def beaker_down(name):
     run(compose_command("down"), cwd=path)
 
 
-def restart_beaker(name):
+def restart_beaker(name, build=False, tolerance="low", detach=False, logs=False):
     config = load_config().get(name)
     if config is not None and not beaker_enabled(config):
         raise SystemExit(f"beaker '{name}' is disabled")
     notify("warning", f"beaker restart started: {name}", source="restart", beaker=name)
     beaker_down(name)
-    beaker_up(name)
+    return beaker_up(name, build=build, tolerance=tolerance, detach=detach, logs=logs)
 
 
 def beaker_logs(name):

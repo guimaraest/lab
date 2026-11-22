@@ -8,11 +8,11 @@ from rich.markup import escape
 from rich.panel import Panel
 from rich.table import Table
 
-from lab_cli.constants import *
-from lab_cli.helpers import command_result, compose_command, human_bytes
-from lab_cli.notifications import format_relative_notification
-from lab_cli.status.collect import host_memory
-from lab_cli.status.colors import DEGRADED, DIM, ERROR, HEALTHY, INDIGO, INDIGO_FILL, INDIGO_LIGHT
+from cli.constants import *
+from cli.helpers import command_result, compose_command, human_bytes
+from cli.notifications import format_relative_notification
+from cli.status.collect import host_memory
+from cli.status.colors import DEGRADED, DIM, ERROR, HEALTHY, INDIGO, INDIGO_FILL, INDIGO_LIGHT
 
 
 BAR_WIDTH = 18

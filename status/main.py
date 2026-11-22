@@ -12,7 +12,7 @@ from flask import Flask, Response, current_app
 
 
 PROJECT_ROOT = Path("/source")
-STATE_DIR = Path("/var/cache/status_endpoint")
+STATE_DIR = Path("/var/cache/status")
 RATE_LIMIT_SECONDS = 600
 COMMAND_TIMEOUT_SECONDS = 55
 

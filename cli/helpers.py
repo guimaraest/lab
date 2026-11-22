@@ -4,8 +4,8 @@ import sys
 
 import yaml
 
-from lab_cli.constants import *
-from lab_cli.notifications import notify
+from cli.constants import *
+from cli.notifications import notify
 
 
 def run(cmd, cwd=None, capture=False, timeout=None, env=None):

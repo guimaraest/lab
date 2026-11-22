@@ -1,13 +1,14 @@
 from pathlib import Path
 
 LAB_ROOT = Path(__file__).resolve().parent.parent
-CONFIG_PATH = Path(__file__).with_name("cli_config.yaml")
-LOCK_PATH = LAB_ROOT / "lab.lock"
+CONFIG_PATH = LAB_ROOT / "beakers.yaml"
+CLI_ROOT = Path(__file__).resolve().parent
+LOCK_PATH = CLI_ROOT / ".lock"
 INTERNAL_NETWORK = "lab-net"
 EXTERNAL_NETWORK = "ext-net"
 COMPOSE_ENV_FILE = LAB_ROOT / ".env"
-WARNING_LOG = LAB_ROOT / "lab_warnings.log"
-LOG_FILE = LAB_ROOT / "lab_logs.log"
+WARNING_LOG = CLI_ROOT / "lab_warnings.log"
+LOG_FILE = CLI_ROOT / "lab_logs.log"
 HEALTH_POLL_INTERVAL = 2
 HEALTHCHECK_SAFETY_CAP_SECONDS = 600
 HIGH_TOLERANCE_HEALTHCHECK_RETRIES = 30

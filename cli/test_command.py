@@ -1,5 +1,5 @@
-from lab_cli.helpers import beaker_aliases, load_config
-from lab_cli.beaker_tests import servarr
+from cli.helpers import beaker_aliases, load_config
+from cli.beaker_tests import servarr
 
 
 TESTS_BY_BEAKER = {

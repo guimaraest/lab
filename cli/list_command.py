@@ -1,5 +1,5 @@
-from lab_cli.constants import *
-from lab_cli.helpers import *
+from cli.constants import *
+from cli.helpers import *
 
 
 def cmd_list(args):

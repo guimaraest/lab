@@ -2,7 +2,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
-from lab_cli.helpers import parse_env_file
+from cli.helpers import parse_env_file
 
 
 def cmd_data_tree(args):

@@ -3,12 +3,12 @@ import subprocess
 import unittest
 from unittest.mock import patch
 
-from lab_cli import test_command
-from lab_cli.beaker_tests import servarr
+from cli import test_command
+from cli.beaker_tests import servarr
 
 
 class GluetunConnectivityTest(unittest.TestCase):
-    @patch("lab_cli.beaker_tests.servarr.subprocess.run")
+    @patch("cli.beaker_tests.servarr.subprocess.run")
     def test_runs_wget_in_gluetun_network_namespace(self, run):
         run.return_value = subprocess.CompletedProcess(
             [],
@@ -49,7 +49,7 @@ class GluetunConnectivityTest(unittest.TestCase):
             )
         )
 
-    @patch("lab_cli.beaker_tests.servarr.subprocess.run")
+    @patch("cli.beaker_tests.servarr.subprocess.run")
     def test_reports_docker_failure(self, run):
         run.side_effect = [
             subprocess.CompletedProcess([], 1, stdout="", stderr="container gluetun is not running"),
@@ -66,7 +66,7 @@ class GluetunConnectivityTest(unittest.TestCase):
         self.assertIn("container gluetun is not running", details)
         self.assertEqual(run.call_count, 1 + len(servarr.CONTAINER_CONNECTIVITY_COMMANDS))
 
-    @patch("lab_cli.beaker_tests.servarr.subprocess.run")
+    @patch("cli.beaker_tests.servarr.subprocess.run")
     def test_reports_timeout(self, run):
         run.side_effect = [
             subprocess.TimeoutExpired(servarr.GLUETUN_CONNECTIVITY_COMMAND, 120),
@@ -84,7 +84,7 @@ class GluetunConnectivityTest(unittest.TestCase):
 
 
 class BeakerTestCommandTest(unittest.TestCase):
-    @patch("lab_cli.test_command.load_config")
+    @patch("cli.test_command.load_config")
     def test_default_runs_only_beakers_with_configured_tests(self, load_config):
         load_config.return_value = {
             "nextcloud": {"aliases": [], "tests": []},
@@ -96,7 +96,7 @@ class BeakerTestCommandTest(unittest.TestCase):
 
         run_tests.assert_called_once_with(["servarr"])
 
-    @patch("lab_cli.test_command.load_config")
+    @patch("cli.test_command.load_config")
     def test_unknown_alias_fails(self, load_config):
         load_config.return_value = {
             "servarr": {"aliases": [], "tests": ["gluetun-connectivity"]},
@@ -105,7 +105,7 @@ class BeakerTestCommandTest(unittest.TestCase):
         with self.assertRaisesRegex(SystemExit, "unknown beaker or alias"):
             test_command.cmd_test(argparse.Namespace(beakers=["unknown"]))
 
-    @patch("lab_cli.test_command.load_config")
+    @patch("cli.test_command.load_config")
     def test_beaker_without_tests_fails(self, load_config):
         load_config.return_value = {
             "nextcloud": {"aliases": [], "tests": []},

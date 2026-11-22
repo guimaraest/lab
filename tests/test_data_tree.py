@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from lab_cli import data_tree
+from cli import data_tree
 
 
 class DataTreeCommandTest(unittest.TestCase):
@@ -14,14 +14,14 @@ class DataTreeCommandTest(unittest.TestCase):
         self.addCleanup(self.temp_dir.cleanup)
         self.data_path = Path(self.temp_dir.name)
         self.env_patch = patch(
-            "lab_cli.data_tree.parse_env_file",
+            "cli.data_tree.parse_env_file",
             return_value={"DATA_PATH": str(self.data_path)},
         )
         self.env_patch.start()
         self.addCleanup(self.env_patch.stop)
 
-    @patch("lab_cli.data_tree.subprocess.run")
-    @patch("lab_cli.data_tree.shutil.which", return_value="/usr/bin/tree")
+    @patch("cli.data_tree.subprocess.run")
+    @patch("cli.data_tree.shutil.which", return_value="/usr/bin/tree")
     def test_defaults_to_depth_four(self, which, run):
         run.return_value = subprocess.CompletedProcess([], 0)
 
@@ -33,8 +33,8 @@ class DataTreeCommandTest(unittest.TestCase):
             check=False,
         )
 
-    @patch("lab_cli.data_tree.subprocess.run")
-    @patch("lab_cli.data_tree.shutil.which", return_value="/usr/bin/tree")
+    @patch("cli.data_tree.subprocess.run")
+    @patch("cli.data_tree.shutil.which", return_value="/usr/bin/tree")
     def test_uses_requested_depth(self, which, run):
         run.return_value = subprocess.CompletedProcess([], 0)
 
@@ -46,27 +46,27 @@ class DataTreeCommandTest(unittest.TestCase):
         with self.assertRaisesRegex(SystemExit, "at least 1"):
             data_tree.cmd_data_tree(argparse.Namespace(level=0))
 
-    @patch("lab_cli.data_tree.shutil.which", return_value=None)
+    @patch("cli.data_tree.shutil.which", return_value=None)
     def test_reports_missing_tree_command(self, which):
         with self.assertRaisesRegex(SystemExit, "tree.*not found"):
             data_tree.cmd_data_tree(argparse.Namespace(level=4))
 
-    @patch("lab_cli.data_tree.parse_env_file", return_value={})
+    @patch("cli.data_tree.parse_env_file", return_value={})
     def test_reports_missing_data_path(self, parse_env):
         with self.assertRaisesRegex(SystemExit, "DATA_PATH is not configured"):
             data_tree.cmd_data_tree(argparse.Namespace(level=4))
 
-    @patch("lab_cli.data_tree.shutil.which", return_value="/usr/bin/tree")
+    @patch("cli.data_tree.shutil.which", return_value="/usr/bin/tree")
     def test_reports_nonexistent_data_path(self, which):
         with patch(
-            "lab_cli.data_tree.parse_env_file",
+            "cli.data_tree.parse_env_file",
             return_value={"DATA_PATH": str(self.data_path / "missing")},
         ):
             with self.assertRaisesRegex(SystemExit, "DATA_PATH is not a directory"):
                 data_tree.cmd_data_tree(argparse.Namespace(level=4))
 
-    @patch("lab_cli.data_tree.subprocess.run")
-    @patch("lab_cli.data_tree.shutil.which", return_value="/usr/bin/tree")
+    @patch("cli.data_tree.subprocess.run")
+    @patch("cli.data_tree.shutil.which", return_value="/usr/bin/tree")
     def test_propagates_tree_failure(self, which, run):
         run.return_value = subprocess.CompletedProcess([], 2)
 

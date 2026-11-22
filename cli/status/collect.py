@@ -10,9 +10,9 @@ from pathlib import Path
 import yaml
 import psutil
 
-from lab_cli.constants import *
-from lab_cli.helpers import *
-from lab_cli.notifications import notify, notify_once
+from cli.constants import *
+from cli.helpers import *
+from cli.notifications import notify, notify_once
 
 
 PSEUDO_FILESYSTEMS = {

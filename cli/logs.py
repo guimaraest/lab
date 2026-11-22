@@ -1,8 +1,8 @@
 import json
 from datetime import datetime, timezone
 
-from lab_cli.constants import LOG_FILE, INTERNAL_NETWORK
-from lab_cli.discord_webhooks import DiscordWebhook
+from cli.constants import LOG_FILE, INTERNAL_NETWORK
+from cli.discord_webhooks import DiscordWebhook
 
 
 class LogService:

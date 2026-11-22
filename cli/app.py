@@ -2,16 +2,16 @@ import argparse
 import fcntl
 from contextlib import contextmanager
 
-from lab_cli.constants import *
-from lab_cli.beaker import cmd_beaker
-from lab_cli.data_tree import cmd_data_tree
-from lab_cli.lifecycle import cmd_down, cmd_init, cmd_restart, cmd_up
-from lab_cli.helpers import load_config
-from lab_cli.list_command import cmd_list
-from lab_cli.logs import log, print_recent_logs
-from lab_cli.notifications import notify_server_up
-from lab_cli.status import cmd_status
-from lab_cli.test_command import cmd_test
+from cli.constants import *
+from cli.beaker import cmd_beaker
+from cli.data_tree import cmd_data_tree
+from cli.lifecycle import cmd_down, cmd_init, cmd_restart, cmd_up
+from cli.helpers import load_config
+from cli.list_command import cmd_list
+from cli.logs import log, print_recent_logs
+from cli.notifications import notify_server_up
+from cli.status import cmd_status
+from cli.test_command import cmd_test
 
 
 @contextmanager
@@ -49,11 +49,14 @@ def main():
             "while high tolerance uses more patient health checks"
         )
         parser.add_argument(
-        "beakers",
-        nargs="*",
-        metavar="BEAKER_OR_ALIAS",
-        help="beaker names or aliases (defaults to all autostart beakers)",
+            "beakers",
+            nargs="*",
+            metavar="BEAKER_OR_ALIAS",
+            help="beaker names or aliases (defaults to all autostart beakers)",
         )
+        add_lifecycle_arguments(parser)
+
+    def add_lifecycle_arguments(parser):
         parser.add_argument("--build", action="store_true", help="build images before starting")
         parser.add_argument("--logs", action="store_true", help="show logs after starting")
         parser.add_argument("-d", "--detach", action="store_true", help="start and return without waiting for health")
@@ -76,12 +79,7 @@ def main():
             "high tolerance is intended for the scheduled ofelia restart"
         ),
     )
-    restart_parser.add_argument(
-        "--tolerance",
-        choices=["low", "high"],
-        default="low",
-        help="healthcheck tolerance for this restart",
-    )
+    add_lifecycle_arguments(restart_parser)
 
     down_parser = sub.add_parser("down", help="stop beakers in reverse dependency order")
     down_parser.add_argument(
@@ -109,15 +107,16 @@ def main():
     beaker_sub = beaker_parser.add_subparsers(dest="action", required=True)
     beaker_sub.add_parser("status", help="show beaker status")
     beaker_up_parser = beaker_sub.add_parser("up", help="start the beaker")
-    beaker_up_parser.add_argument("--build", action="store_true", help="build the image before starting")
+    add_lifecycle_arguments(beaker_up_parser)
     beaker_sub.add_parser("down", help="stop the beaker")
-    beaker_sub.add_parser(
+    beaker_restart_parser = beaker_sub.add_parser(
         "restart",
         help="restart the beaker using low healthcheck tolerance",
         description="restart this beaker using the default low healthcheck tolerance",
     )
-    beaker_sub.add_parser("logs", help="show beaker logs")
-    console_parser = beaker_sub.add_parser("console", help="attach to a service's console")
+    add_lifecycle_arguments(beaker_restart_parser)
+    beaker_sub.add_parser("listen", help="follow beaker logs")
+    console_parser = beaker_sub.add_parser("attach", help="attach to a service's console")
     console_parser.add_argument(
         "service",
         nargs="?",

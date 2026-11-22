@@ -5,12 +5,12 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from lab_cli import beaker, lifecycle
+from cli import beaker, lifecycle
 
 
 class BeakerUpTest(unittest.TestCase):
-    @patch("lab_cli.beaker.beaker_up")
-    @patch("lab_cli.beaker.load_config", return_value={"cea": {"aliases": []}})
+    @patch("cli.beaker.beaker_up")
+    @patch("cli.beaker.load_config", return_value={"cea": {"aliases": []}})
     def test_build_flag_is_forwarded(self, load_config, beaker_up):
         beaker.cmd_beaker(Namespace(name="cea", action="up", build=True))
 
@@ -26,8 +26,8 @@ class BeakerConsoleTest(unittest.TestCase):
         self.beaker_path.mkdir()
         (self.beaker_path / "docker-compose.yml").touch()
 
-    @patch("lab_cli.lifecycle.run")
-    @patch("lab_cli.lifecycle.load_config", return_value={"minecraft": {"main_service": "minecraft"}})
+    @patch("cli.lifecycle.run")
+    @patch("cli.lifecycle.load_config", return_value={"minecraft": {"main_service": "minecraft"}})
     def test_attaches_to_configured_main_service(self, load_config, run):
         run.return_value = subprocess.CompletedProcess([], 0)
 
@@ -46,8 +46,8 @@ class BeakerConsoleTest(unittest.TestCase):
             cwd=self.beaker_path,
         )
 
-    @patch("lab_cli.lifecycle.run")
-    @patch("lab_cli.lifecycle.load_config", return_value={"minecraft": {"main_service": "minecraft"}})
+    @patch("cli.lifecycle.run")
+    @patch("cli.lifecycle.load_config", return_value={"minecraft": {"main_service": "minecraft"}})
     def test_attaches_to_explicit_service(self, load_config, run):
         run.return_value = subprocess.CompletedProcess([], 0)
 
@@ -56,13 +56,13 @@ class BeakerConsoleTest(unittest.TestCase):
 
         self.assertEqual(run.call_args.args[0][-2:], ["attach", "playit"])
 
-    @patch("lab_cli.lifecycle.load_config", return_value={"minecraft": {}})
+    @patch("cli.lifecycle.load_config", return_value={"minecraft": {}})
     def test_requires_configured_main_service(self, load_config):
         with self.assertRaisesRegex(SystemExit, "no service specified or main_service configured"):
             lifecycle.beaker_console("minecraft")
 
-    @patch("lab_cli.lifecycle.run")
-    @patch("lab_cli.lifecycle.load_config", return_value={"minecraft": {"main_service": "minecraft"}})
+    @patch("cli.lifecycle.run")
+    @patch("cli.lifecycle.load_config", return_value={"minecraft": {"main_service": "minecraft"}})
     def test_returns_attach_failure_code(self, load_config, run):
         run.return_value = subprocess.CompletedProcess([], 127)
 
@@ -82,7 +82,7 @@ class BeakerLogsTest(unittest.TestCase):
         self.beaker_path.mkdir()
         (self.beaker_path / "docker-compose.yml").touch()
 
-    @patch("lab_cli.lifecycle.run")
+    @patch("cli.lifecycle.run")
     def test_follows_beaker_logs(self, run):
         with patch.object(lifecycle, "LAB_ROOT", self.lab_root):
             lifecycle.beaker_logs("minecraft")
