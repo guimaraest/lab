@@ -8,7 +8,7 @@ beakers:
   cloudflared:
     autostart: true
     allow_restart: true
-    depends_on: [nextcloud, status, youtube, jellyfin, cea]
+    depends_on: []
   cea:
     enabled: true
     autostart: true

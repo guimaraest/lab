@@ -27,14 +27,17 @@ def mutating_command_lock():
 
 
 def main():
-    parser = argparse.ArgumentParser(prog="lab", description="lab beaker orchestrator")
+    parser = argparse.ArgumentParser(
+        prog="lab",
+        description="Manage the lab's Docker Compose beakers, host status, and power records.",
+    )
     sub = parser.add_subparsers(dest="command", required=True)
 
-    sub.add_parser("init", help="create the shared docker network")
-    sub.add_parser("list", help="list configured beakers")
-    logs_parser = sub.add_parser("logs", help="show recent lab notifications")
+    sub.add_parser("init", help="create or verify the shared Docker networks", description="Create the internal lab-net and external ext-net Docker networks, or verify existing networks.")
+    sub.add_parser("list", help="list configured beakers", description="List configured beakers with enabled, autostart, alias, dependency, and test settings.")
+    logs_parser = sub.add_parser("logs", help="show recent lab notifications", description="Show the newest warning and status notifications from the local notification log.")
     logs_parser.add_argument("--limit", type=int, default=50, help="number of recent notifications to show (default: 50)")
-    data_tree_parser = sub.add_parser("data-tree", help="show the data directory tree")
+    data_tree_parser = sub.add_parser("data-tree", help="show the data directory tree", description="Print DATA_PATH from .env using the system 'tree' command.")
     data_tree_parser.add_argument(
         "-L",
         "--level",
@@ -59,30 +62,31 @@ def main():
 
     def add_lifecycle_arguments(parser):
         parser.add_argument("--build", action="store_true", help="build images before starting")
-        parser.add_argument("--logs", action="store_true", help="show logs after starting")
-        parser.add_argument("-d", "--detach", action="store_true", help="start and return without waiting for health")
+        parser.add_argument("--logs", action="store_true", help="show Compose logs after starting")
+        parser.add_argument("-d", "--detach", action="store_true", help="return without waiting for container health")
         parser.add_argument(
             "--tolerance",
             choices=["low", "high"],
             default="low",
-            help="healthcheck tolerance (default: low)",
+            help="healthcheck tolerance; high allows more retries (default: low)",
         )
 
-    up_parser = sub.add_parser("up", help="start beakers in dependency order")
+    up_parser = sub.add_parser("up", help="start selected or autostart beakers", description="Start enabled beakers in dependency order. With no names, start enabled autostart beakers; naming beakers selects them explicitly.")
     add_run_arguments(up_parser)
-    run_parser = sub.add_parser("run", help="start beakers in dependency order")
+    run_parser = sub.add_parser("run", help="alias for up", description="Alias for 'lab up'. Start enabled beakers in dependency order.")
     add_run_arguments(run_parser)
     restart_parser = sub.add_parser(
         "restart",
-        help="restart all autostart beakers in dependency order",
+        help="restart beakers configured for restart",
         description=(
-            "restart all autostart beakers; low tolerance is the default, while "
-            "high tolerance is intended for the scheduled ofelia restart"
+            "Restart enabled beakers with allow_restart set, in dependency order. "
+            "Each retry stops the selected stack in reverse order, then starts it. "
+            "If all retries fail, stop every beaker."
         ),
     )
     add_lifecycle_arguments(restart_parser)
 
-    down_parser = sub.add_parser("down", help="stop beakers in reverse dependency order")
+    down_parser = sub.add_parser("down", help="stop selected or all beakers", description="Stop beakers in reverse dependency order. With no names, stop all configured beakers.")
     down_parser.add_argument(
         "beakers",
         nargs="*",
@@ -90,7 +94,7 @@ def main():
         help="beaker names or aliases (defaults to all beakers)",
     )
 
-    test_parser = sub.add_parser("test", help="run configured beaker tests")
+    test_parser = sub.add_parser("test", help="run configured beaker tests", description="Run configured tests for named beakers, or for every beaker with tests.")
     test_parser.add_argument(
         "beakers",
         nargs="*",
@@ -98,44 +102,45 @@ def main():
         help="beaker names or aliases (defaults to beakers with tests)",
     )
 
-    status_parser = sub.add_parser("status", help="show detailed host and beaker status")
+    status_parser = sub.add_parser("status", help="show host and beaker status", description="Collect host, Docker, network, and beaker status; report high-severity conditions as notifications.")
     status_parser.add_argument("--json", action="store_true", help="output structured JSON")
     status_parser.add_argument("--save-log", action="store_true", help="send the full report through the log system")
-    sub.add_parser("server-up", help="send the server-up warning")
+    sub.add_parser("server-up", help="record a server-up warning", description="Record the server-up warning and forward it to the configured warning webhook.")
 
-    record_parser = sub.add_parser("record", help="record a power usage or system event")
+    record_parser = sub.add_parser("record", help="record a power or system event", description="Append a UTC power meter snapshot or system event to cli/power.log.")
     record_sub = record_parser.add_subparsers(dest="event", required=True)
-    for event in ("periodic", "shutdown", "poweron"):
-        record_sub.add_parser(event)
+    record_sub.add_parser("periodic", help="record a meter snapshot", description="Read available power meters and append a UTC snapshot to cli/power.log.")
+    record_sub.add_parser("shutdown", help="record a shutdown boundary", description="Append a UTC shutdown event to cli/power.log to close power measurement intervals.")
+    record_sub.add_parser("poweron", help="record a power-on boundary", description="Append a UTC power-on event to cli/power.log to begin new power measurement intervals.")
 
-    power_parser = sub.add_parser("power", help="power usage reports")
+    power_parser = sub.add_parser("power", help="report measured power usage", description="Report measured power use from the local power log.")
     power_sub = power_parser.add_subparsers(dest="power_action", required=True)
-    power_report_parser = power_sub.add_parser("report", help="report measured power usage for a month")
+    power_report_parser = power_sub.add_parser("report", help="report measured power use for a month", description="Calculate measured energy intervals overlapping a UTC calendar month.")
     power_report_parser.add_argument("--month", metavar="YYYY-MM", help="UTC month (defaults to the current month)")
 
-    beaker_parser = sub.add_parser("beaker", help="run an action for one beaker")
+    beaker_parser = sub.add_parser("beaker", help="manage one beaker", description="Inspect or control one beaker by configured name or alias.")
     beaker_parser.add_argument("name", metavar="NAME", help="beaker name or alias")
     beaker_sub = beaker_parser.add_subparsers(dest="action", required=True)
-    beaker_sub.add_parser("status", help="show beaker status")
-    beaker_up_parser = beaker_sub.add_parser("up", help="start the beaker")
+    beaker_sub.add_parser("status", help="show beaker status", description="Show container status and resource use for this beaker.")
+    beaker_up_parser = beaker_sub.add_parser("up", help="start the beaker", description="Start this enabled beaker and, unless detached, wait for its containers to become healthy.")
     add_lifecycle_arguments(beaker_up_parser)
-    beaker_sub.add_parser("down", help="stop the beaker")
+    beaker_sub.add_parser("down", help="stop the beaker", description="Stop and remove this beaker's Compose containers.")
     beaker_restart_parser = beaker_sub.add_parser(
         "restart",
-        help="restart the beaker using low healthcheck tolerance",
-        description="restart this beaker using the default low healthcheck tolerance",
+        help="stop and start the beaker",
+        description="Stop and start this enabled beaker, waiting for health unless detached.",
     )
     add_lifecycle_arguments(beaker_restart_parser)
-    beaker_sub.add_parser("listen", help="follow beaker logs")
-    console_parser = beaker_sub.add_parser("attach", help="attach to a service's console")
+    beaker_sub.add_parser("listen", help="follow beaker logs", description="Follow the Compose logs for this beaker.")
+    console_parser = beaker_sub.add_parser("attach", help="attach to a service console", description="Attach to a Compose service's console; defaults to the configured main_service.")
     console_parser.add_argument(
         "service",
         nargs="?",
         metavar="SERVICE",
         help="Compose service to attach to (defaults to the configured main service)",
     )
-    beaker_sub.add_parser("test", help="run configured tests for the beaker")
-    flag_parser = beaker_sub.add_parser("flag", help="change a beaker flag")
+    beaker_sub.add_parser("test", help="run configured beaker tests", description="Run this beaker's configured tests.")
+    flag_parser = beaker_sub.add_parser("flag", help="change a beaker setting", description="Update the beaker's autostart setting in config.yaml.")
     flag_parser.add_argument("flag_name", choices=["autostart"])
     flag_parser.add_argument("flag_value", choices=["true", "false"])
 
